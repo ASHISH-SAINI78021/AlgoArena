@@ -1,0 +1,73 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Yjs Remote Cursors */
+.yRemoteSelection {
+  background-color: rgb(250, 129, 0, 0.5);
+  margin-right: -1px;
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  border-left: orange solid 2px;
+  border-top: orange solid 2px;
+  border-bottom: orange solid 2px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.yRemoteSelectionHead::after {
+  position: absolute;
+  content: ' ';
+  border: 3px solid orange;
+  border-radius: 4px;
+  left: -4px;
+  top: -5px;
+}
+
+/* Tooltip for user name on hover or active typing can be added if supported by y-monaco directly, 
+   but usually y-monaco uses these classes. The color is often injected inline by the binding. 
+   We provide defaults here. */

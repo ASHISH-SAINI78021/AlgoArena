@@ -1,0 +1,604 @@
+/* Container */
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    border-top: 1px solid #3e3e42;
+  }
+  
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: #252526;
+    border-bottom: 1px solid #3e3e42;
+    padding: 0 0.5rem;
+    gap: 0.25rem;
+  }
+  
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #969696;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .tab:hover {
+    color: #d4d4d4;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .tabActive {
+    color: #fff;
+    border-bottom-color: #007acc;
+    background: rgba(0, 122, 204, 0.1);
+  }
+  
+  .tabIcon {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  /* Content Area */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    background: #1e1e1e;
+  }
+  
+  /* Custom Scrollbar */
+  .content::-webkit-scrollbar {
+    width: 10px;
+  }
+  
+  .content::-webkit-scrollbar-track {
+    background: #1e1e1e;
+  }
+  
+  .content::-webkit-scrollbar-thumb {
+    background: #3e3e42;
+    border-radius: 5px;
+  }
+  
+  .content::-webkit-scrollbar-thumb:hover {
+    background: #4e4e52;
+  }
+  
+  /* Test Cases */
+  .testCases {
+    padding: 1rem;
+  }
+  
+  .testCasesHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #3e3e42;
+  }
+  
+  .headerTitle {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #d4d4d4;
+  }
+  
+  .runAllBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, #16a34a, #15803d);
+    border: none;
+    border-radius: 0.375rem;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .runAllBtn:hover {
+    background: linear-gradient(90deg, #15803d, #166534);
+    transform: translateY(-1px);
+  }
+  
+  .btnIcon {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  /* Test Case List */
+  .testCasesList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .testCaseItem {
+    background: #252526;
+    border: 1px solid #3e3e42;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+  
+  .testCaseItem:hover {
+    border-color: #007acc;
+  }
+  
+  .testCaseHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .testCaseLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .testCaseName {
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  
+  .testCaseStats {
+    font-size: 0.75rem;
+    color: #969696;
+  }
+  
+  .testCaseRight {
+    display: flex;
+    align-items: center;
+  }
+  
+  .chevron {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #969696;
+    transition: transform 0.2s;
+  }
+  
+  /* Status Icons */
+  .iconPassed {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #16a34a;
+  }
+  
+  .iconFailed {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #dc2626;
+  }
+  
+  .iconPending {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #f59e0b;
+  }
+  
+  /* Test Case Details */
+  .testCaseDetails {
+    padding: 1rem;
+    background: #1e1e1e;
+    border-top: 1px solid #3e3e42;
+    animation: slideDown 0.2s ease-out;
+  }
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+    }
+    to {
+      opacity: 1;
+      max-height: 500px;
+    }
+  }
+  
+  .detailSection {
+    margin-bottom: 1rem;
+  }
+  
+  .detailSection:last-child {
+    margin-bottom: 0;
+  }
+  
+  .detailLabel {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #969696;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .detailCode {
+    background: #2d2d30;
+    border: 1px solid #3e3e42;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    color: #d4d4d4;
+  }
+  
+  .outputCorrect {
+    border-color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
+  }
+  
+  .outputWrong {
+    border-color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+  }
+  
+  /* Performance Metrics */
+  .performanceMetrics {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #3e3e42;
+  }
+  
+  .metric {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #969696;
+  }
+  
+  .metricIcon {
+    width: 1rem;
+    height: 1rem;
+    color: #007acc;
+  }
+  
+  /* Result Tab */
+  .result {
+    padding: 1.5rem;
+  }
+  
+  .resultHeader {
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+  
+  .resultStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .statusAccepted {
+    background: rgba(22, 163, 74, 0.2);
+    border: 1px solid #16a34a;
+  }
+  
+  .statusRejected {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid #dc2626;
+  }
+  
+  .resultIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .statusAccepted .resultIcon {
+    color: #16a34a;
+  }
+  
+  .statusRejected .resultIcon {
+    color: #dc2626;
+  }
+  
+  .resultTitle {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .resultTests {
+    font-size: 0.875rem;
+    color: #969696;
+  }
+  
+  /* Result Grid */
+  .resultGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .resultCard {
+    background: #252526;
+    border: 1px solid #3e3e42;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+  
+  .resultCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #969696;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .resultCardIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #007acc;
+  }
+  
+  .resultCardValue {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #16a34a;
+  }
+  
+  .resultCardBar {
+    width: 100%;
+    height: 8px;
+    background: #3e3e42;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+  
+  .resultCardBarFill {
+    height: 100%;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+  }
+  
+  .resultCardLabel {
+    font-size: 0.75rem;
+    color: #969696;
+  }
+  
+  /* Result Actions */
+  .resultActions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .resultBtn {
+    padding: 0.75rem 1.5rem;
+    background: #3c3c3c;
+    border: 1px solid #555;
+    border-radius: 0.375rem;
+    color: #d4d4d4;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .resultBtn:hover {
+    background: #464646;
+    border-color: #007acc;
+    color: #fff;
+  }
+  
+  /* Console Tab */
+  .console {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .consoleHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #252526;
+    border-bottom: 1px solid #3e3e42;
+  }
+  
+  .consoleTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  
+  .consoleIcon {
+    width: 1rem;
+    height: 1rem;
+    color: #007acc;
+  }
+  
+  .clearBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background: transparent;
+    border: 1px solid #555;
+    border-radius: 0.375rem;
+    color: #969696;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .clearBtn:hover {
+    background: #3c3c3c;
+    border-color: #dc2626;
+    color: #dc2626;
+  }
+  
+  /* Console Output */
+  .consoleOutput {
+    flex: 1;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    overflow-y: auto;
+  }
+  
+  .consoleEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #969696;
+    text-align: center;
+  }
+  
+  .emptyIcon {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+  
+  .consoleLine {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+  
+  .consoleTimestamp {
+    color: #969696;
+    font-size: 0.75rem;
+    min-width: 70px;
+  }
+  
+  .consoleMessage {
+    flex: 1;
+  }
+  
+  .consoleInfo {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+  }
+  
+  .consoleSuccess {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
+  }
+  
+  .consoleOutput {
+    color: #d4d4d4;
+  }
+  
+  .consoleError {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+  }
+  
+  .consoleWarning {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .tabs {
+      overflow-x: auto;
+    }
+  
+    .tab {
+      white-space: nowrap;
+    }
+  
+    .testCasesHeader {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+  
+    .runAllBtn {
+      width: 100%;
+      justify-content: center;
+    }
+  
+    .resultGrid {
+      grid-template-columns: 1fr;
+    }
+  
+    .resultActions {
+      flex-direction: column;
+    }
+  
+    .resultBtn {
+      width: 100%;
+    }
+  
+    .performanceMetrics {
+      flex-direction: column;
+    }
+  }
+  
+  /* Accessibility */
+  .tab:focus-visible,
+  .runAllBtn:focus-visible,
+  .clearBtn:focus-visible,
+  .resultBtn:focus-visible {
+    outline: 2px solid #007acc;
+    outline-offset: 2px;
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .testCaseItem,
+  .resultCard {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .resultCardBarFill {
+    animation: fillBar 0.8s ease-out;
+  }
+  
+  @keyframes fillBar {
+    from {
+      width: 0;
+    }
+  }
