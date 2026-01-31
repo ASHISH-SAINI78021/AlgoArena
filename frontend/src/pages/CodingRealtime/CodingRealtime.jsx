@@ -30,7 +30,7 @@ const CodingRealtime = () => {
 
   useEffect(() => {
     // 1. Initial Socket Handshake
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io(import.meta.env.VITE_SOCKET_URL);
     setSocket(newSocket);
 
     // 2. Check URL params for immediate join
@@ -61,7 +61,7 @@ const CodingRealtime = () => {
     // Initialize Yjs for THIS room
     const doc = new Y.Doc();
     const wsp = new WebsocketProvider(
-      'ws://localhost:1234',
+      import.meta.env.VITE_YJS_WEBSOCKET_URL,
       roomId,
       doc
     );

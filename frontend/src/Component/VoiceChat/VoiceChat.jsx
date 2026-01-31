@@ -20,6 +20,28 @@ const VoiceChat = ({ roomId, username, socket }) => {
         localStreamRef.current = localStream;
     }, [localStream]);
 
+    // --- Helper Functions (Defined before useEffects) ---
+
+    const stopRingtone = () => {
+        if (ringtoneRef.current) {
+            ringtoneRef.current.pause();
+            ringtoneRef.current.currentTime = 0;
+        }
+    };
+
+    const cleanup = () => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+        if (peerRef.current) {
+            peerRef.current.destroy();
+        }
+        streamsRef.current = {};
+        setPeers({});
+        setLocalStream(null);
+        stopRingtone();
+    };
+
     const handleStream = (call) => {
         call.on('stream', (remoteStream) => {
             const peerId = call.peer;
@@ -46,6 +68,49 @@ const VoiceChat = ({ roomId, username, socket }) => {
         });
     };
 
+    const toggleVoice = async () => {
+        if (isJoined) {
+            cleanup();
+            setIsJoined(false);
+            toast.error("Left voice channel", { icon: '🔇' });
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setLocalStream(stream);
+                setIsJoined(true);
+                toast.success("Joined voice channel", { icon: '🎙️' });
+            } catch (err) {
+                toast.error("Microphone access denied!");
+                console.error(err);
+            }
+        }
+    };
+
+    const handleAccept = () => {
+        stopRingtone();
+        setIncomingCall(null);
+        toggleVoice();
+    };
+
+    const handleDecline = () => {
+        stopRingtone();
+        setIncomingCall(null);
+        toast("Call declined", { icon: '✖️' });
+    };
+
+    const toggleMute = () => {
+        if (localStream) {
+            const enabled = localStream.getAudioTracks()[0].enabled;
+            localStream.getAudioTracks()[0].enabled = !enabled;
+            setIsMuted(enabled); // inverted because we just flipped it
+            toast(enabled ? "Microphone Muted" : "Microphone Unmuted", {
+                icon: enabled ? '🔇' : '🎙️'
+            });
+        }
+    };
+
+    // --- Effects ---
+
     // Initialize Peer
     useEffect(() => {
         if (!isJoined) return;
@@ -53,8 +118,8 @@ const VoiceChat = ({ roomId, username, socket }) => {
         // Create Peer with unique ID that includes username for easy identification
         const peerId = `${roomId}-${username}-${Math.random().toString(36).substr(2, 5)}`;
         const peer = new Peer(peerId, {
-            host: 'localhost',
-            port: 9000,
+            host: import.meta.env.VITE_VOICE_SERVER_HOST,
+            port: import.meta.env.VITE_VOICE_SERVER_PORT,
             path: '/myapp'
         });
 
@@ -89,8 +154,6 @@ const VoiceChat = ({ roomId, username, socket }) => {
             cleanup();
         };
     }, [isJoined, roomId, username, socket]);
-
-
 
     // Handle Global Voice Notifications & Ringing
     useEffect(() => {
@@ -138,66 +201,6 @@ const VoiceChat = ({ roomId, username, socket }) => {
             stopRingtone();
         };
     }, [socket, isJoined, username, incomingCall]);
-
-    const stopRingtone = () => {
-        if (ringtoneRef.current) {
-            ringtoneRef.current.pause();
-            ringtoneRef.current.currentTime = 0;
-        }
-    };
-
-    const handleAccept = () => {
-        stopRingtone();
-        setIncomingCall(null);
-        toggleVoice();
-    };
-
-    const handleDecline = () => {
-        stopRingtone();
-        setIncomingCall(null);
-        toast("Call declined", { icon: '✖️' });
-    };
-
-    const cleanup = () => {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
-        if (peerRef.current) {
-            peerRef.current.destroy();
-        }
-        streamsRef.current = {};
-        setPeers({});
-        setLocalStream(null);
-    };
-
-    const toggleVoice = async () => {
-        if (isJoined) {
-            cleanup();
-            setIsJoined(false);
-            toast.error("Left voice channel", { icon: '🔇' });
-        } else {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                setLocalStream(stream);
-                setIsJoined(true);
-                toast.success("Joined voice channel", { icon: '🎙️' });
-            } catch (err) {
-                toast.error("Microphone access denied!");
-                console.error(err);
-            }
-        }
-    };
-
-    const toggleMute = () => {
-        if (localStream) {
-            const enabled = localStream.getAudioTracks()[0].enabled;
-            localStream.getAudioTracks()[0].enabled = !enabled;
-            setIsMuted(enabled); // inverted because we just flipped it
-            toast(enabled ? "Microphone Muted" : "Microphone Unmuted", {
-                icon: enabled ? '🔇' : '🎙️'
-            });
-        }
-    };
 
     return (
         <div style={{

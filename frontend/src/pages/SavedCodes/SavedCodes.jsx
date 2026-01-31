@@ -147,7 +147,6 @@ const SavedCodes = () => {
                                 </h3>
                                 {code.fileName && <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>ID: {code.roomId}</p>}
                                 <p style={{
-                                    fontSize: '0.875rem',
                                     color: '#64748b',
                                     marginBottom: '24px',
                                     overflow: 'hidden',
