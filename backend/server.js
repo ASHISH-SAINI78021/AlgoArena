@@ -47,7 +47,17 @@ const io = new Server(server, {
 
 const peerServer = ExpressPeerServer(server, {
     debug: true,
-    path: '/' 
+    path: '/',
+    proxied: true, // Match standalone config for reverse proxies
+    key: 'peerjs'
+});
+
+peerServer.on('connection', (client) => {
+    console.log('🎙️ Voice Peer connected:', client.getId());
+});
+
+peerServer.on('disconnect', (client) => {
+    console.log('🎙️ Voice Peer disconnected:', client.getId());
 });
 
 // Attach Voice Middleware
