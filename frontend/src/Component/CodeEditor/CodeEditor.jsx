@@ -4,7 +4,7 @@ import Editor from '@monaco-editor/react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
-import axios from 'axios';
+import axios from '../../axios/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
 
 const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider }) => {
@@ -133,7 +133,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         // Only insert template/saved code if the document is totally empty (first setup in this Yjs session)
         if (type.length === 0) {
           try {
-            const res = await axios.get(`http://localhost:5000/api/code/${roomId}`);
+            const res = await axios.get(`/code/${roomId}`);
             if (res.data && res.data.code && res.data.code.trim() !== '') {
               // Found saved code in DB!
               const savedLang = res.data.language || 'javascript';

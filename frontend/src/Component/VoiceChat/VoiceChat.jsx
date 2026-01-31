@@ -120,7 +120,8 @@ const VoiceChat = ({ roomId, username, socket }) => {
         const peer = new Peer(peerId, {
             host: import.meta.env.VITE_VOICE_SERVER_HOST,
             port: import.meta.env.VITE_VOICE_SERVER_PORT,
-            path: import.meta.env.VITE_VOICE_SERVER_PATH
+            path: import.meta.env.VITE_VOICE_SERVER_PATH,
+            secure: import.meta.env.VITE_VOICE_SERVER_PORT == 443
         });
 
         peerRef.current = peer;
