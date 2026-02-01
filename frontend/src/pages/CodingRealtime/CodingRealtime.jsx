@@ -42,6 +42,12 @@ const CodingRealtime = () => {
       setRoomId(roomParam);
       setUsername(userParam);
       setJoined(true);
+    } else if (roomParam && user) {
+      setRoomId(roomParam);
+      setUsername(user.username);
+      setJoined(true);
+    } else if (roomParam) {
+      setRoomId(roomParam);
     } else if (user) {
       setUsername(user.username);
     }

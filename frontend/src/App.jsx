@@ -17,11 +17,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/realtime-coding" element={
-            <ProtectedRoute>
-              <CodingRealtime />
-            </ProtectedRoute>
-          } />
+          <Route path="/realtime-coding" element={<CodingRealtime />} />
           <Route path="/saved-codes" element={
             <ProtectedRoute>
               <SavedCodes />

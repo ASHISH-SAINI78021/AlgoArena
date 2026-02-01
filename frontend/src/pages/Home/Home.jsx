@@ -103,9 +103,9 @@ export default function Home() {
         </p>
 
         <div className={styles.heroCta}>
-          <button className={styles.btnLarge} onClick={() => navigate(user ? '/realtime-coding' : '/signup')}>
+          <button className={styles.btnLarge} onClick={() => navigate('/realtime-coding')}>
             <Play className={styles.btnIcon} />
-            {user ? 'Enter the Arena' : 'Join Now'}
+            Enter the Arena
           </button>
           <button className={styles.btnLargeSecondary}>
             <Code className={styles.btnIcon} />

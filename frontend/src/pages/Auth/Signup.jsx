@@ -14,8 +14,9 @@ const Signup = () => {
         e.preventDefault();
         setError('');
         try {
-            await register(username, email, password);
-            navigate('/login');
+            const params = new URLSearchParams(window.location.search);
+            const redirect = params.get('redirect');
+            navigate(`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`);
         } catch (err) {
             console.error("Signup Error Detailed:", err);
             const serverError = err.response?.data?.error || err.response?.data?.message || 'Signup failed';

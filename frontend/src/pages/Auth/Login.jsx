@@ -14,7 +14,9 @@ const Login = () => {
         setError('');
         try {
             await login(email, password);
-            navigate('/'); // Redirect to Home or Editor
+            const params = new URLSearchParams(window.location.search);
+            const redirect = params.get('redirect') || '/';
+            navigate(redirect);
         } catch (err) {
             setError(err.response?.data?.error || 'Login failed');
         }

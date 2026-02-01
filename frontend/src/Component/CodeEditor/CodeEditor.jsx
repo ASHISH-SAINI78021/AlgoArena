@@ -6,8 +6,11 @@ import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 import axios from '../../axios/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider }) => {
+  const navigate = useNavigate();
   const [editorInstance, setEditorInstance] = useState(null);
   const [monacoInstance, setMonacoInstance] = useState(null);
   const sharedDataRef = useRef(null);
@@ -49,6 +52,14 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
 
     const editor = editorInstance;
+
+    // Check for cached code from unauthenticated session
+    const cachedCode = sessionStorage.getItem(`guest_code_${roomId}`);
+    if (cachedCode && type.length === 0) {
+      type.insert(0, cachedCode);
+      sessionStorage.removeItem(`guest_code_${roomId}`);
+      toast.success("Restored your work! Click Save again to finish.", { icon: '💾' });
+    }
 
     // Set User Awareness with a stable color for this session
     const color = getRandomColor();
@@ -242,6 +253,15 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
   const saveCode = async () => {
     if (!editorInstance) return;
+
+    if (!user) {
+      // Guest trying to save -> Cache and Redirect
+      const sourceCode = editorInstance.getValue();
+      sessionStorage.setItem(`guest_code_${roomId}`, sourceCode);
+      const redirectPath = encodeURIComponent(window.location.pathname + window.location.search);
+      navigate(`/login?redirect=${redirectPath}`);
+      return;
+    }
 
     let fileName = currentFileName;
     const newName = window.prompt("Enter a unique name for this file:", currentFileName || "");
