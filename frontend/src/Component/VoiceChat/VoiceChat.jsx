@@ -246,9 +246,9 @@ const VoiceChat = ({ roomId, username, socket }) => {
     return (
         <div style={{
             position: 'fixed',
-            bottom: '90px',
+            bottom: '20px',
             right: '20px',
-            zIndex: 1000,
+            zIndex: 999,
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
