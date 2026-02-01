@@ -82,6 +82,15 @@ app.use('/voice-peer', peerServer);
 app.use(express.json());
 app.use(cookieParser());
 
+// --- Global Request Logger ---
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  if (req.method === 'POST') {
+    console.log('Body:', { ...req.body, password: '***' }); // Hide password
+  }
+  next();
+});
+
 // Connect to MongoDB (non-blocking)
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/algoarena')
     .then(() => console.log('✅ MongoDB Connected'))

@@ -89,6 +89,10 @@ const Signup = () => {
                 <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '14px' }}>
                     Already have an account? <Link to="/login" style={{ color: '#69f0ae' }}>Login</Link>
                 </div>
+                {/* Debug Info */}
+                <div style={{ marginTop: '20px', fontSize: '10px', color: '#666', textAlign: 'center' }}>
+                    API URL: {import.meta.env.VITE_API_BASE_URL || 'Not Set'}
+                </div>
             </form>
         </div>
     );
