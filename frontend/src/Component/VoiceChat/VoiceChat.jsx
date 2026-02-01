@@ -127,9 +127,24 @@ const VoiceChat = ({ roomId, username, socket }) => {
         peerRef.current = peer;
 
         peer.on('open', (id) => {
-            console.log('Voice Peer ID:', id);
+            console.log('✅ Voice Peer ID initialized:', id);
             // Notify others via socket that we are ready for voice
             socket.emit('voice-ready', { roomId, peerId: id, username });
+        });
+
+        peer.on('error', (err) => {
+            console.error('❌ PeerJS Error:', err.type, err.message);
+            if (err.type === 'browser-incompatible') {
+                toast.error("Browser not supported for voice");
+            } else if (err.type === 'network') {
+                toast.error("Voice server connection failed");
+            } else {
+                toast.error(`Voice error: ${err.type}`);
+            }
+        });
+
+        peer.on('disconnected', () => {
+            console.warn('⚠️ PeerJS disconnected from server');
         });
 
         // Handle incoming calls
