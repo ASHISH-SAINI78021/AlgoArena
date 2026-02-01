@@ -15,10 +15,15 @@ const generateRefreshToken = (user) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    console.log(`[Auth] Signup Request: username=${username}, email=${email}`);
 
     // Check existing
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) return res.status(400).json({ error: "Username or Email already exists" });
+    if (existingUser) {
+      const field = existingUser.email === email ? 'Email' : 'Username';
+      console.log(`[Auth] Signup Conflict: ${field} already exists`);
+      return res.status(400).json({ error: `${field} already exists` });
+    }
 
     // Hash Password
     const salt = await bcrypt.genSalt(10);
@@ -27,9 +32,15 @@ exports.register = async (req, res) => {
     const newUser = new User({ username, email, password: hashedPassword });
     await newUser.save();
 
+    console.log(`[Auth] Signup Success: ${username}`);
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(`[Auth] Signup Error:`, error);
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ error: messages.join(', ') });
+    }
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

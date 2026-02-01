@@ -18,7 +18,8 @@ const Signup = () => {
             navigate('/login');
         } catch (err) {
             console.error("Signup Error Detailed:", err);
-            setError(err.response?.data?.error || 'Signup failed - Check Console for details');
+            const serverError = err.response?.data?.error || err.response?.data?.message || 'Signup failed';
+            setError(serverError);
         }
     };
 
