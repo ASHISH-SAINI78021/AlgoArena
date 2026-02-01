@@ -50,7 +50,21 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={{ user, loading, login, register, logout }}>
-            {!loading && children}
+            {loading ? (
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100vh',
+                    background: '#1a1a1a',
+                    color: 'white',
+                    fontFamily: 'Inter, sans-serif'
+                }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>AlgoArena</div>
+                    <div style={{ fontSize: '16px', color: '#94a3b8' }}>Loading your workspace...</div>
+                </div>
+            ) : children}
         </AuthContext.Provider>
     );
 };
