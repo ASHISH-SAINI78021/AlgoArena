@@ -1,6 +1,6 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
+import { Sparkles, Github } from 'lucide-react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 
 const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider }) => {
   const navigate = useNavigate();
+  console.log("Current API Base URL:", import.meta.env.VITE_API_BASE_URL);
   const [editorInstance, setEditorInstance] = useState(null);
   const [monacoInstance, setMonacoInstance] = useState(null);
   const sharedDataRef = useRef(null);
@@ -19,6 +20,90 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   const [userCount, setUserCount] = useState(0);
   const [users, setUsers] = useState([]);
   const [currentFileName, setCurrentFileName] = useState('');
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [generatedCodePreview, setGeneratedCodePreview] = useState(null);
+
+  // GitHub State
+  const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
+  const [isGithubConnected, setIsGithubConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState('');
+  const [repoName, setRepoName] = useState('algo-arena-solutions');
+  const [commitMessage, setCommitMessage] = useState('Added solution from AlgoArena');
+  const [isPushing, setIsPushing] = useState(false);
+
+  // Check GitHub Status on Mount
+  useEffect(() => {
+    const checkGithubStatus = async () => {
+      try {
+        const res = await axios.get('/api/github/status');
+        if (res.data.connected) {
+          setIsGithubConnected(true);
+          setGithubUsername(res.data.username);
+        }
+      } catch (err) {
+        console.error("Failed to check GitHub status");
+      }
+    };
+    checkGithubStatus();
+
+    // Listen for popup success message
+    const handleMessage = (event) => {
+      if (event.data.type === 'GITHUB_CONNECTED') {
+        setIsGithubConnected(true);
+        toast.success("GitHub Connected!");
+        checkGithubStatus(); // Get username
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleConnectGithub = async () => {
+    try {
+      const res = await axios.get('/api/github/auth');
+      window.open(res.data.url, 'GitHub Auth', 'width=600,height=700');
+    } catch (err) {
+      toast.error("Failed to start GitHub connection");
+    }
+  };
+
+  const handlePushToGithub = async () => {
+    if (!repoName || !commitMessage) {
+      toast.error("Please fill in repository name and commit message");
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const content = editorInstance.getValue();
+      // Determine filename based on room/problem name or timestamp
+      // For now using timestamp-based name or currentFileName if set
+      const extMap = { javascript: 'js', python: 'py', cpp: 'cpp', java: 'java' };
+      const ext = extMap[language] || 'txt';
+      const fileName = currentFileName ? `${currentFileName}.${ext}` : `solution_${Date.now()}.${ext}`;
+
+      const res = await axios.post('/api/github/push', {
+        repoName,
+        fileName,
+        content,
+        message: commitMessage
+      });
+
+      toast.success(
+        <span>
+          Pushed successfully!
+          <a href={res.data.htmlUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '5px', color: '#fff', textDecoration: 'underline' }}>View on GitHub</a>
+        </span>
+      );
+      setIsGithubModalOpen(false);
+    } catch (error) {
+      toast.error("Failed to push: " + (error.response?.data?.error || error.message));
+    } finally {
+      setIsPushing(false);
+    }
+  };
 
   // Explicitly update model language when state changes
   useEffect(() => {
@@ -52,6 +137,12 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
 
     const editor = editorInstance;
+    const type = yDoc.getText('monaco');
+    const sharedData = yDoc.getMap('sharedData');
+    sharedDataRef.current = sharedData;
+    yTextRef.current = type;
+
+    const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
 
     // Check for cached code from unauthenticated session
     const cachedCode = sessionStorage.getItem(`guest_code_${roomId}`);
@@ -119,13 +210,6 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     provider.awareness.on('change', updateUsers);
     updateUsers();
 
-    const type = yDoc.getText('monaco');
-    const sharedData = yDoc.getMap('sharedData');
-    sharedDataRef.current = sharedData;
-    yTextRef.current = type;
-
-    const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
-
     // Sync language from shared state
     const syncLanguage = () => {
       const sharedLang = sharedData.get('language');
@@ -144,7 +228,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         // Only insert template/saved code if the document is totally empty (first setup in this Yjs session)
         if (type.length === 0) {
           try {
-            const res = await axios.get(`/code/${roomId}`);
+            const res = await axios.get(`/api/code/${roomId}`);
             if (res.data && res.data.code && res.data.code.trim() !== '') {
               // Found saved code in DB!
               const savedLang = res.data.language || 'javascript';
@@ -171,7 +255,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
           if (sharedLang) setLanguage(sharedLang);
 
           // Also fetch metadata (filename) from backend if not in sync
-          axios.get(`/code/${roomId}`)
+          axios.get(`/api/code/${roomId}`)
             .then(res => {
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             });
@@ -245,8 +329,9 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   };
 
   const copyRoomId = () => {
-    navigator.clipboard.writeText(roomId);
-    alert("Room ID copied to clipboard!");
+    const inviteLink = `${window.location.origin}/realtime-coding?roomId=${roomId}`;
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Invite link copied!");
   };
 
   const { user } = useAuth();
@@ -275,7 +360,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
     const sourceCode = editorInstance.getValue();
     try {
-      const res = await axios.post('/code/save', {
+      const res = await axios.post('/api/code/save', {
         roomId,
         code: sourceCode,
         language,
@@ -304,7 +389,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     };
 
     try {
-      const response = await axios.post('/code/execute', {
+      const response = await axios.post('/api/code/execute', {
         language: languageMap[language],
         source: sourceCode,
         version: '*'
@@ -324,6 +409,107 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     }
   };
 
+  // Extract code blocks from markdown-style response
+  const extractCodeBlocks = (text) => {
+    if (!text) return [];
+
+    // Try to extract markdown code blocks (```language\ncode\n```)
+    // Improved regex to allow optional whitespace after backticks
+    const codeBlockRegex = /```[ \w]*\n([\s\S]*?)```/g;
+    const blocks = [];
+    let match;
+
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+      blocks.push(match[1].trim());
+    }
+
+    // If markdown blocks found, return them
+    if (blocks.length > 0) {
+      return blocks;
+    }
+
+    // Fallback: If no markdown blocks, check if entire response looks like code
+    // (no explanatory text like "Here's", "The issue", etc.)
+    const hasExplanation = /\b(here'?s|the issue|the problem|you should|explanation|mistake|error is|wrong with)\b/i.test(text);
+
+    if (!hasExplanation) {
+      // Looks like pure code, return as single block
+      return [text.trim()];
+    }
+
+    // If it has explanation but no code blocks, return empty
+    return [];
+  };
+
+  // Remove code blocks from text to get explanations only
+  const getExplanationText = (text) => {
+    if (!text) return '';
+
+    // Remove markdown code blocks
+    let explanation = text.replace(/```[ \w]*\n[\s\S]*?```/g, '[CODE BLOCK]').trim();
+
+    // Check if it's pure code (same logic as extractCodeBlocks)
+    const hasExplanation = /\b(here'?s|the issue|the problem|you should|explanation|mistake|error is|wrong with)\b/i.test(text);
+    if (!hasExplanation && !text.includes('```')) {
+      return ''; // No explanation for pure code
+    }
+
+    // If nothing left after removing code blocks, return empty
+    if (explanation.length === 0 || explanation === '[CODE BLOCK]') {
+      return '';
+    }
+
+    return explanation;
+  };
+
+  const handleAIGenerate = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const currentCode = editorInstance.getValue();
+      const res = await axios.post('/api/ai/generate', {
+        prompt: aiPrompt,
+        currentCode,
+        language
+      });
+
+      const generatedCode = res.data.generatedCode;
+      if (generatedCode) {
+        // Show preview instead of auto-inserting
+        setGeneratedCodePreview(generatedCode);
+        toast.success("Code generated! Review it before inserting.");
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || "AI failed to generate code";
+      toast.error(errorMsg);
+      console.error(error);
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
+  const handleAcceptCode = () => {
+    if (generatedCodePreview && yDoc && yTextRef.current) {
+      // Extract only code blocks, not explanations
+      const codeBlocks = extractCodeBlocks(generatedCodePreview);
+      const codeToInsert = codeBlocks.length > 0 ? codeBlocks.join('\n\n') : generatedCodePreview;
+
+      yDoc.transact(() => {
+        yTextRef.current.delete(0, yTextRef.current.length);
+        yTextRef.current.insert(0, codeToInsert);
+      });
+      toast.success("Code inserted! (Explanations excluded)");
+      setGeneratedCodePreview(null);
+      setIsAIModalOpen(false);
+      setAiPrompt('');
+    }
+  };
+
+  const handleRejectCode = () => {
+    setGeneratedCodePreview(null);
+    toast('Response rejected. Try a different prompt.', { icon: '❌' });
+  };
+
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: '10px', background: '#1e1e1e', color: '#fff', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -331,7 +517,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
           <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{currentFileName || 'Untitled Arena'}</span>
           <span style={{ fontSize: '10px', color: '#666' }}>ID: {roomId}</span>
         </div>
-        <button onClick={copyRoomId} style={{ background: '#444', border: 'none', color: '#fff', padding: '5px 8px', cursor: 'pointer', fontSize: '12px' }}>Copy</button>
+        <button onClick={copyRoomId} style={{ background: '#444', border: 'none', color: '#fff', padding: '5px 8px', cursor: 'pointer', fontSize: '12px' }}>Copy Link</button>
 
         <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
           {users.map((u, i) => (
@@ -361,8 +547,313 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         </select>
         <button onClick={saveCode} style={{ background: '#007acc', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Save</button>
         <button onClick={downloadCode} style={{ background: '#6c757d', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Download</button>
+        <button onClick={() => setIsAIModalOpen(true)} style={{ background: '#8b5cf6', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Sparkles size={14} /> AI
+        </button>
+        <button onClick={() => {
+          if (!isGithubConnected) handleConnectGithub();
+          else setIsGithubModalOpen(true);
+        }} style={{ background: '#24292e', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Github size={14} /> {isGithubConnected ? 'Push' : 'Connect'}
+        </button>
         <button onClick={runCode} style={{ background: '#28a745', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Run</button>
       </div>
+
+      {/* AI Prompt Modal */}
+      {isAIModalOpen && !generatedCodePreview && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#1e293b',
+          padding: '20px',
+          borderRadius: '12px',
+          border: '1px solid #8b5cf6',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          zIndex: 2000,
+          width: '500px'
+        }}>
+          <h3 style={{ margin: '0 0 10px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={18} color="#8b5cf6" /> AI Coding Assistant
+          </h3>
+          <p style={{ margin: '0 0 15px 0', color: '#94a3b8', fontSize: '12px' }}>
+            💡 Ask for code help only. Non-coding requests will be rejected.
+          </p>
+          <textarea
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="e.g., Write a function to find binary search in Python..."
+            style={{
+              width: '100%',
+              height: '100px',
+              background: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              color: '#fff',
+              padding: '10px',
+              fontSize: '14px',
+              marginBottom: '15px',
+              resize: 'none',
+              outline: 'none'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => { setIsAIModalOpen(false); setAiPrompt(''); }}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAIGenerate}
+              disabled={isAiGenerating || !aiPrompt.trim()}
+              style={{
+                background: '#8b5cf6',
+                border: 'none',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                opacity: (isAiGenerating || !aiPrompt.trim()) ? 0.5 : 1
+              }}
+            >
+              {isAiGenerating ? 'Generating...' : 'Generate Code'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* GitHub Push Modal */}
+      {isGithubModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#1e293b',
+          padding: '20px',
+          borderRadius: '12px',
+          border: '1px solid #24292e',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          zIndex: 2000,
+          width: '400px'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Github size={18} color="#fff" /> Push to GitHub
+          </h3>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '5px' }}>Repository Name</label>
+            <input
+              type="text"
+              value={repoName}
+              onChange={(e) => setRepoName(e.target.value)}
+              placeholder="Repository Name"
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                color: '#fff'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '5px' }}>Commit Message</label>
+            <input
+              type="text"
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              placeholder="Commit message"
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                color: '#fff'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setIsGithubModalOpen(false)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePushToGithub}
+              disabled={isPushing}
+              style={{
+                background: '#24292e',
+                border: 'none',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                opacity: isPushing ? 0.7 : 1
+              }}
+            >
+              {isPushing ? 'Pushing...' : 'Push Code'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Preview Modal - ChatGPT Style */}
+      {generatedCodePreview && (() => {
+        const codeBlocks = extractCodeBlocks(generatedCodePreview);
+        const explanationText = getExplanationText(generatedCodePreview);
+        const hasExplanation = explanationText && explanationText !== '[CODE BLOCK]' && explanationText.length > 10;
+
+        return (
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: '#1e293b',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid #8b5cf6',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            zIndex: 2000,
+            width: '800px',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={18} color="#8b5cf6" /> AI Response
+            </h3>
+            <p style={{ margin: '0 0 15px 0', color: '#94a3b8', fontSize: '12px' }}>
+              💡 Only code blocks will be inserted into your editor. Explanations are for reference.
+            </p>
+
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {/* Explanation Section */}
+              {hasExplanation && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '15px'
+                }}>
+                  <div style={{
+                    color: '#94a3b8',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    marginBottom: '8px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>📝 Explanation</div>
+                  <div style={{
+                    color: '#e2e8f0',
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {explanationText.replace(/\[CODE BLOCK\]/g, '').trim()}
+                  </div>
+                </div>
+              )}
+
+              {/* Code Blocks Section */}
+              {codeBlocks.map((code, index) => (
+                <div key={index} style={{
+                  background: '#0f172a',
+                  border: '1px solid #10b981',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '6px 12px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    💻 Code Block {codeBlocks.length > 1 ? `${index + 1}/${codeBlocks.length}` : ''}
+                  </div>
+                  <pre style={{
+                    margin: 0,
+                    color: '#e2e8f0',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    padding: '15px',
+                    background: '#0a0f1a'
+                  }}>
+                    {code}
+                  </pre>
+                </div>
+              ))}
+
+              {/* Fallback if no code blocks detected */}
+              {codeBlocks.length === 0 && (
+                <div style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '15px'
+                }}>
+                  <pre style={{
+                    margin: 0,
+                    color: '#e2e8f0',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word'
+                  }}>
+                    {generatedCodePreview}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '15px' }}>
+              <button
+                onClick={handleRejectCode}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #ef4444',
+                  color: '#ef4444',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ❌ Reject
+              </button>
+              <button
+                onClick={handleAcceptCode}
+                style={{
+                  background: '#10b981',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✅ Accept Code {codeBlocks.length > 0 ? `(${codeBlocks.length} block${codeBlocks.length > 1 ? 's' : ''})` : ''}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       <Editor
         height="90vh"
         theme="vs-dark"

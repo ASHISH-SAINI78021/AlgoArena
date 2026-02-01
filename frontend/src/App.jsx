@@ -8,6 +8,7 @@ import CodingRealtime from './pages/CodingRealtime/CodingRealtime';
 import Login from './pages/Auth/Login';
 import Signup from './pages/Auth/Signup';
 import SavedCodes from './pages/SavedCodes/SavedCodes';
+import GithubCallback from './pages/Auth/GithubCallback';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -25,6 +26,7 @@ function App() {
           } />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/auth/github/callback" element={<GithubCallback />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

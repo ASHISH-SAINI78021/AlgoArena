@@ -83,8 +83,14 @@ app.use(express.json());
 app.use(cookieParser());
 
 // --- Global Request Logger ---
+// --- Global Request Logger ---
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log(`\n🔥 [INCOMING] ${req.method} ${req.url}`);
+  console.log('Headers Origin:', req.headers.origin);
+  if (req.url.startsWith('/api/github')) {
+      console.log('>>> TARGETING GITHUB ROUTE <<<');
+  }
+  
   if (req.method === 'POST') {
     console.log('Body:', { ...req.body, password: '***' }); // Hide password
   }
@@ -163,9 +169,13 @@ io.on('connection', (socket) => {
 // Import Routes
 const codeRoutes = require('./routes/codeRoutes');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const githubRoutes = require('./routes/githubRoutes');
 
 app.use('/api/code', codeRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/github', githubRoutes);
 
 app.get('/', (req, res) => {
     res.send('Welcome to AlgoArena API');
