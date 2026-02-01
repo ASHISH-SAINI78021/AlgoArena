@@ -13,6 +13,22 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+// --- Proxy & Security Settings ---
+app.set('trust proxy', 1); // Trust Render's proxy for secure cookies
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://algo-arena-abq7.vercel.app',
+  'https://algo-arena-88dw.vercel.app'
+];
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+
 // Use specific origin for CORS to avoid issues with Socket.io credentials if needed later
 const wss = new WebSocket.Server({ noServer: true });
 
@@ -38,7 +54,7 @@ server.emit = function (event, ...args) {
 
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5173", "http://127.0.0.1:5173", "https://algo-arena-abq7.vercel.app"], 
+        origin: allowedOrigins, 
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -63,10 +79,6 @@ peerServer.on('disconnect', (client) => {
 // Attach Voice Middleware
 app.use('/voice-peer', peerServer);
 
-app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://algo-arena-abq7.vercel.app'], // Allow local and Vercel
-    credentials: true // Important for cookies
-}));
 app.use(express.json());
 app.use(cookieParser());
 
