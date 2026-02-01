@@ -121,7 +121,14 @@ const VoiceChat = ({ roomId, username, socket }) => {
             host: import.meta.env.VITE_VOICE_SERVER_HOST,
             port: import.meta.env.VITE_VOICE_SERVER_PORT,
             path: import.meta.env.VITE_VOICE_SERVER_PATH,
-            secure: import.meta.env.VITE_VOICE_SERVER_PORT == 443
+            secure: Number(import.meta.env.VITE_VOICE_SERVER_PORT) === 443,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                ]
+            }
         });
 
         peerRef.current = peer;
@@ -393,7 +400,14 @@ const AudioElement = ({ stream }) => {
         }
     }, [stream]);
 
-    return <audio ref={audioRef} autoPlay style={{ display: 'none' }} />;
+    return (
+        <audio
+            ref={audioRef}
+            autoPlay
+            playsInline // Required for mobile browsers
+            style={{ display: 'none' }}
+        />
+    );
 };
 
 export default VoiceChat;
