@@ -38,7 +38,7 @@ server.emit = function (event, ...args) {
 
 const io = new Server(server, {
     cors: {
-        origin: "*", 
+        origin: ["http://localhost:5173", "http://127.0.0.1:5173", "https://algo-arena-abq7.vercel.app"], 
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -64,7 +64,7 @@ peerServer.on('disconnect', (client) => {
 app.use('/voice-peer', peerServer);
 
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Allow both localhost and IP
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://algo-arena-abq7.vercel.app'], // Allow local and Vercel
     credentials: true // Important for cookies
 }));
 app.use(express.json());
