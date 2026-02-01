@@ -122,6 +122,7 @@ const VoiceChat = ({ roomId, username, socket }) => {
             port: import.meta.env.VITE_VOICE_SERVER_PORT,
             path: import.meta.env.VITE_VOICE_SERVER_PATH,
             secure: Number(import.meta.env.VITE_VOICE_SERVER_PORT) === 443,
+            debug: 3, // Enable full debug logs for troubleshooting
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -140,11 +141,14 @@ const VoiceChat = ({ roomId, username, socket }) => {
         });
 
         peer.on('error', (err) => {
-            console.error('❌ PeerJS Error:', err.type, err.message);
+            console.error('❌ PeerJS Error Type:', err.type);
+            console.error('❌ PeerJS Error Message:', err.message);
             if (err.type === 'browser-incompatible') {
                 toast.error("Browser not supported for voice");
             } else if (err.type === 'network') {
                 toast.error("Voice server connection failed");
+            } else if (err.type === 'unavailable-id') {
+                console.warn("Peer ID already in use, retrying...");
             } else {
                 toast.error(`Voice error: ${err.type}`);
             }
@@ -156,18 +160,22 @@ const VoiceChat = ({ roomId, username, socket }) => {
 
         // Handle incoming calls
         peer.on('call', (call) => {
+            console.log('📞 Incoming call from:', call.peer);
             const currentStream = localStreamRef.current;
             if (currentStream) {
+                console.log('✅ Answering call with existing stream');
                 call.answer(currentStream);
                 handleStream(call);
             } else {
+                console.log('🎤 Requesting mic access to answer call...');
                 navigator.mediaDevices.getUserMedia({ audio: true })
                     .then((stream) => {
+                        console.log('✅ Mic access granted, answering call');
                         setLocalStream(stream);
                         call.answer(stream);
                         handleStream(call);
                     }).catch(err => {
-                        console.error("Failed to answer call:", err);
+                        console.error("❌ Failed to answer call:", err);
                         toast.error("Incoming call failed: No mic access");
                     });
             }
@@ -200,13 +208,17 @@ const VoiceChat = ({ roomId, username, socket }) => {
 
             // 2. If we ARE in voice, we need to initiate the peer call to this new person
             if (isJoined && peerRef.current) {
+                console.log('📡 Initiating call to:', remotePeerId);
                 const currentStream = localStreamRef.current;
                 if (currentStream) {
+                    console.log('✅ Calling with existing stream');
                     const call = peerRef.current.call(remotePeerId, currentStream);
                     handleStream(call);
                 } else {
+                    console.log('🎤 Requesting mic access to initiate call...');
                     navigator.mediaDevices.getUserMedia({ audio: true })
                         .then((stream) => {
+                            console.log('✅ Mic access granted, calling...');
                             setLocalStream(stream);
                             if (peerRef.current) {
                                 const call = peerRef.current.call(remotePeerId, stream);
@@ -394,9 +406,19 @@ const VoiceChat = ({ roomId, username, socket }) => {
 // Helper component for cleaning up audio resources
 const AudioElement = ({ stream }) => {
     const audioRef = useRef();
+
     useEffect(() => {
         if (audioRef.current && stream) {
+            console.log('🎵 Attaching stream to audio element');
             audioRef.current.srcObject = stream;
+
+            // Explicitly try to play (required by some browsers)
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn("⚠️ Audio play blocked by browser. User interaction might be needed:", error);
+                });
+            }
         }
     }, [stream]);
 
@@ -411,3 +433,4 @@ const AudioElement = ({ stream }) => {
 };
 
 export default VoiceChat;
+```
