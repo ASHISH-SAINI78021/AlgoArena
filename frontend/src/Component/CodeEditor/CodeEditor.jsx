@@ -160,7 +160,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
           if (sharedLang) setLanguage(sharedLang);
 
           // Also fetch metadata (filename) from backend if not in sync
-          axios.get(`http://localhost:5000/api/code/${roomId}`)
+          axios.get(`/code/${roomId}`)
             .then(res => {
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             });
@@ -255,7 +255,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
     const sourceCode = editorInstance.getValue();
     try {
-      const res = await axios.post('http://localhost:5000/api/code/save', {
+      const res = await axios.post('/code/save', {
         roomId,
         code: sourceCode,
         language,
@@ -284,7 +284,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/api/code/execute', {
+      const response = await axios.post('/code/execute', {
         language: languageMap[language],
         source: sourceCode,
         version: '*'
