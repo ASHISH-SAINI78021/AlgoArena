@@ -25,6 +25,11 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [generatedCodePreview, setGeneratedCodePreview] = useState(null);
 
+  // Save Modal State
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+
+
   // GitHub State
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(false);
@@ -37,7 +42,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   useEffect(() => {
     const checkGithubStatus = async () => {
       try {
-        const res = await axios.get('/api/github/status');
+        const res = await axios.get('/github/status');
         if (res.data.connected) {
           setIsGithubConnected(true);
           setGithubUsername(res.data.username);
@@ -62,7 +67,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
   const handleConnectGithub = async () => {
     try {
-      const res = await axios.get('/api/github/auth');
+      const res = await axios.get('/github/auth');
       window.open(res.data.url, 'GitHub Auth', 'width=600,height=700');
     } catch (err) {
       toast.error("Failed to start GitHub connection");
@@ -84,7 +89,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
       const ext = extMap[language] || 'txt';
       const fileName = currentFileName ? `${currentFileName}.${ext}` : `solution_${Date.now()}.${ext}`;
 
-      const res = await axios.post('/api/github/push', {
+      const res = await axios.post('/github/push', {
         repoName,
         fileName,
         content,
@@ -228,7 +233,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         // Only insert template/saved code if the document is totally empty (first setup in this Yjs session)
         if (type.length === 0) {
           try {
-            const res = await axios.get(`/api/code/${roomId}`);
+            const res = await axios.get(`/code/${roomId}`);
             if (res.data && res.data.code && res.data.code.trim() !== '') {
               // Found saved code in DB!
               const savedLang = res.data.language || 'javascript';
@@ -255,7 +260,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
           if (sharedLang) setLanguage(sharedLang);
 
           // Also fetch metadata (filename) from backend if not in sync
-          axios.get(`/api/code/${roomId}`)
+          axios.get(`/code/${roomId}`)
             .then(res => {
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             });
@@ -348,29 +353,31 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
       return;
     }
 
-    let fileName = currentFileName;
-    const newName = window.prompt("Enter a unique name for this file:", currentFileName || "");
+    // Open Custom Modal
+    setNewFileName(currentFileName || '');
+    setIsSaveModalOpen(true);
+  };
 
-    if (newName === null) return; // Cancelled
-    if (!newName.trim()) {
-      alert("File name cannot be empty");
+  const handleConfirmSave = async () => {
+    if (!newFileName.trim()) {
+      toast.error("File name cannot be empty");
       return;
     }
-    fileName = newName.trim();
 
     const sourceCode = editorInstance.getValue();
     try {
-      const res = await axios.post('/api/code/save', {
+      const res = await axios.post('/code/save', {
         roomId,
         code: sourceCode,
         language,
         userId: user?.id,
-        fileName: fileName
+        fileName: newFileName.trim()
       });
-      setCurrentFileName(fileName);
-      alert("Code Saved Successfully as " + fileName);
+      setCurrentFileName(newFileName.trim());
+      setIsSaveModalOpen(false);
+      toast.success("Code Saved Successfully!");
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to save code");
+      toast.error(error.response?.data?.error || "Failed to save code");
     }
   };
 
@@ -389,7 +396,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     };
 
     try {
-      const response = await axios.post('/api/code/execute', {
+      const response = await axios.post('/code/execute', {
         language: languageMap[language],
         source: sourceCode,
         version: '*'
@@ -467,7 +474,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     setIsAiGenerating(true);
     try {
       const currentCode = editorInstance.getValue();
-      const res = await axios.post('/api/ai/generate', {
+      const res = await axios.post('/ai/generate', {
         prompt: aiPrompt,
         currentCode,
         language
@@ -620,6 +627,60 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
               }}
             >
               {isAiGenerating ? 'Generating...' : 'Generate Code'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Save File Modal */}
+      {isSaveModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#1e293b',
+          padding: '20px',
+          borderRadius: '12px',
+          border: '1px solid #3b82f6',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          zIndex: 2000,
+          width: '400px'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            💾 Save Code
+          </h3>
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', marginBottom: '5px' }}>File Name</label>
+            <input
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              placeholder="e.g. MySolution"
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                color: '#fff',
+                outline: 'none'
+              }}
+              onKeyPress={(e) => e.key === 'Enter' && handleConfirmSave()}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setIsSaveModalOpen(false)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmSave}
+              style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Save to Database
             </button>
           </div>
         </div>

@@ -20,8 +20,9 @@ const GithubCallback = () => {
                 return;
             }
 
+            const state = searchParams.get('state');
             try {
-                const res = await axios.post('/api/github/callback', { code });
+                const res = await axios.post('/github/callback', { code, userId: state });
 
                 // If successful
                 if (res.data.accessToken) {

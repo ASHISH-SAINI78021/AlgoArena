@@ -10,7 +10,8 @@ exports.getAuthUrl = (req, res) => {
   // In production, this should be the deployed frontend URL
   const frontendUrl = req.headers.origin || 'http://localhost:5173';
   const redirectUri = `${frontendUrl}/auth/github/callback`;
-  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=repo user`;
+  const state = req.user.id; // Pass user ID in state
+  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=repo user&state=${state}`;
   res.json({ url });
 };
 
@@ -43,14 +44,14 @@ exports.callback = async (req, res) => {
     // Strategy: The frontend will receive the code from the redirect params, THEN call this API endpoint with the code and the auth header.
     
     // We expect this endpoint to be called BY THE FRONTEND after it grabs the code from the URL.
-    // So we can use req.user (from auth middleware)
-    
-    // START_MODIFICATION: We assume this is a protected route called by frontend
-    if (!req.user) {
-        return res.status(401).json({ error: "User not authenticated" });
+    // If not authenticated via body (userId), fallback to req.user (from auth middleware)
+    const finalUserId = userId || req.user?.id;
+
+    if (!finalUserId) {
+      return res.status(401).json({ error: "User not authenticated" });
     }
 
-    await User.findByIdAndUpdate(req.user.id, { githubAccessToken: accessToken });
+    await User.findByIdAndUpdate(finalUserId, { githubAccessToken: accessToken });
 
     res.json({ message: "GitHub connected successfully", accessToken }); // sending token back just in case, but usually stored in DB is enough
   } catch (error) {
@@ -108,7 +109,9 @@ exports.pushCode = async (req, res) => {
     try {
         const userRes = await axios.get('https://api.github.com/user', { headers });
         owner = userRes.data.login;
+        console.log(`[GitHub] Pushing for user: ${owner}, repo: ${repoName}, file: ${fileName}`);
     } catch (e) {
+        console.error("[GitHub] Token verification failed:", e.message);
         return res.status(401).json({ error: "Invalid GitHub token" });
     }
 
@@ -121,29 +124,39 @@ exports.pushCode = async (req, res) => {
       const fileRes = await axios.get(apiUrl, { headers });
       sha = fileRes.data.sha;
     } catch (error) {
-      // If 404, file doesn't exist, which is fine (we will create it)
-      if (error.response?.status !== 404) {
-          // If 404 on the REPO itself, we might need to create the repo?
-          // Let's check if the repo exists first.
+      // If 404, it means either the FILE or the REPO doesn't exist.
+      if (error.response?.status === 404) {
+          console.log(`[GitHub] File not found or Repo missing. Checking repository: ${fullRepo}`);
           try {
+             // Check if the repo exists
              await axios.get(`https://api.github.com/repos/${fullRepo}`, { headers });
+             console.log(`[GitHub] Repo exists, will create new file.`);
           } catch (repoErr) {
              if (repoErr.response?.status === 404) {
-                 // Create Repo
+                 // Repo doesn't exist, create it
                  try {
+                     console.log(`[GitHub] Attempting to create repo: ${repoName}`);
                      await axios.post('https://api.github.com/user/repos', {
                          name: repoName,
-                         private: false, // Default to public? or allow user input?
-                         auto_init: true // Initialize so we can push file
+                         private: false,
+                         auto_init: true
                      }, { headers });
-                     // Wait a bit for init? 
+                     console.log(`[GitHub] Repo ${repoName} created successfully`);
+                     
+                     // Wait a moment for GitHub to initialize the repo
+                     await new Promise(resolve => setTimeout(resolve, 2000));
                  } catch (createErr) {
-                     return res.status(400).json({ error: "Repository not found and failed to create it: " + createErr.message });
+                     console.error(`[GitHub] Repo creation failed:`, createErr.response?.data || createErr.message);
+                     return res.status(400).json({ error: "Repository not found and failed to create it: " + (createErr.response?.data?.message || createErr.message) });
                  }
              } else {
-                 throw error; // Other error
+                 console.error(`[GitHub] Repo check failed:`, repoErr.response?.data || repoErr.message);
+                 throw repoErr;
              }
           }
+      } else {
+          console.error(`[GitHub] File check failed with non-404:`, error.response?.data || error.message);
+          throw error;
       }
     }
 

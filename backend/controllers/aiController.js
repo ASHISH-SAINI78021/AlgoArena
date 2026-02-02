@@ -10,7 +10,12 @@ const isValidCodingPrompt = (prompt) => {
     'variable', 'loop', 'array', 'object', 'api', 'database', 'query',
     'bug', 'fix', 'debug', 'error', 'implement', 'create', 'write',
     'sort', 'search', 'optimize', 'refactor', 'test', 'validate',
-    'explain', 'review', 'mistake', 'wrong', 'problem', 'issue', 'help'
+    'explain', 'review', 'mistake', 'wrong', 'problem', 'issue', 'help',
+    // Languages
+    'js', 'javascript', 'python', 'java', 'cpp', 'c++', 'html', 'css', 'react', 'node',
+    // Logic/Math
+    'logic', 'syntax', 'add', 'subtract', 'calculate', 'compute', 'sum', 'math',
+    'string', 'int', 'boolean', 'if', 'else', 'for', 'while'
   ];
   
   // Check if prompt contains any coding keywords

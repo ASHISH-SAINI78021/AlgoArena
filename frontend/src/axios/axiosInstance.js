@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  // Hardcoded to fix 404 issue (Env var not loading?)
-  baseURL: 'http://localhost:5001',
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true // Important for cookies
 });
 
