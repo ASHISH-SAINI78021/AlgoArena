@@ -117,6 +117,12 @@ exports.refresh = async (req, res) => {
 
 // Logout
 exports.logout = (req, res) => {
-  res.clearCookie('refreshToken');
+  const isProd = process.env.NODE_ENV === 'production';
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/'
+  });
   res.json({ message: "Logged out successfully" });
 };

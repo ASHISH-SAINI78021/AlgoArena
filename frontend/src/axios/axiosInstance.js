@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+const rawBaseURL = import.meta.env.VITE_API_BASE_URL || '';
+// Ensure no trailing slash and ends with /api
+const sanitizedBaseURL = rawBaseURL.endsWith('/') ? rawBaseURL.slice(0, -1) : rawBaseURL;
+const finalBaseURL = sanitizedBaseURL.endsWith('/api') ? sanitizedBaseURL : `${sanitizedBaseURL}/api`;
+
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: finalBaseURL,
   withCredentials: true // Important for cookies
 });
 
