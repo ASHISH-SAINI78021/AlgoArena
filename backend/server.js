@@ -23,7 +23,8 @@ const allowedOrigins = [
   'http://localhost:5174', // Sometimes vite uses 5174
   'http://127.0.0.1:5174',
   'https://algo-arena-abq7.vercel.app',
-  'https://algo-arena-88dw.vercel.app'
+  'https://algo-arena-88dw.vercel.app',
+  'https://ghost-codev5.netlify.app'
 ];
 
 app.use(cors({
