@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
                     color: 'white',
                     fontFamily: 'Inter, sans-serif'
                 }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>AlgoArena</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>GhostCode</div>
                     <div style={{ fontSize: '16px', color: '#94a3b8' }}>Loading your workspace...</div>
                 </div>
             ) : children}

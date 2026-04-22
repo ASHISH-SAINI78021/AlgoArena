@@ -3,8 +3,8 @@ const router = express.Router();
 const githubController = require('../controllers/githubController');
 const authenticateToken = require('../middleware/auth');
 
-// Public route to get auth URL (frontend needs this to redirect)
-router.get('/auth', githubController.getAuthUrl);
+// Private route to get auth URL
+router.get('/auth', authenticateToken, githubController.getAuthUrl);
 
 // Protected routes (require user to be logged in to app)
 router.post('/callback', authenticateToken, githubController.callback);

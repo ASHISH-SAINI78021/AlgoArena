@@ -1,0 +1,352 @@
+/* ═══════════════════════════════════════════════════════════
+   GhostCode  ·  Arena Aesthetic
+   Same advanced CSS tokens matching Home.module.css
+═══════════════════════════════════════════════════════════ */
+
+:root {
+    --bpurple: rgba(139, 92, 246, 0.4);
+    --purple: #8b5cf6;
+    --violet: #7c3aed;
+    --pink: #ec4899;
+    --cyan: #22d3ee;
+}
+
+.root {
+    min-height: calc(100vh - 60px);
+    width: 100vw;
+    background: var(--theme-bg);
+    position: relative;
+    overflow: hidden;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    color: var(--theme-text);
+    transition: background-color 0.5s ease;
+}
+
+/* ── Particle canvas ── */
+.particleCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Animated gradient spheres ── */
+.sphere1,
+.sphere2,
+.sphere3 {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(140px);
+    will-change: transform;
+}
+
+.sphere1 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 65%);
+    top: -150px;
+    left: -100px;
+    animation: drift1 20s ease-in-out infinite alternate;
+}
+
+.sphere2 {
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 65%);
+    bottom: -200px;
+    right: -150px;
+    animation: drift2 25s ease-in-out infinite alternate;
+}
+
+.sphere3 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 65%);
+    top: 40%;
+    left: 30%;
+    animation: drift3 22s ease-in-out infinite alternate;
+}
+
+@keyframes drift1 {
+    to {
+        transform: translate(100px, 100px) scale(1.1);
+    }
+}
+
+@keyframes drift2 {
+    to {
+        transform: translate(-100px, -100px) scale(0.9);
+    }
+}
+
+@keyframes drift3 {
+    to {
+        transform: translate(50px, -50px);
+    }
+}
+
+/* ── Grid overlay ── */
+.gridOverlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(139, 92, 246, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 92, 246, 0.035) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+    animation: gridPan 30s linear infinite;
+    mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+}
+
+@keyframes gridPan {
+    to {
+        background-position: 0 60px, 60px 0;
+    }
+}
+
+/* ═══════════════ LOBBY ═══════════════ */
+.lobbyContainer {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 60px);
+    width: 100vw;
+}
+
+.lobbyCard {
+    background: var(--theme-sidebar);
+    backdrop-filter: blur(var(--theme-blur)) saturate(180%);
+    border: 1px solid var(--theme-border);
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
+}
+
+.lobbyCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--purple), var(--pink), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.lobbyTitle {
+    font-size: 2rem;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: -0.04em;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(90deg, #c4b5fd, #f9a8d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.lobbySub {
+    text-align: center;
+    color: var(--theme-subtext);
+    font-size: 0.9rem;
+    margin-top: -1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.lobbyInput {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.lobbyInput:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.lobbyInput::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.primaryBtn {
+    position: relative;
+    padding: 1.1rem;
+    background: linear-gradient(135deg, var(--violet), var(--pink));
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+}
+
+.primaryBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 40px rgba(124, 58, 237, 0.6);
+}
+
+.btnShine {
+    position: absolute;
+    top: -50%;
+    left: -75%;
+    width: 50%;
+    height: 200%;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.3) 50%, transparent 60%);
+    transform: skewX(-15deg);
+    animation: btnSweep 4s ease-in-out infinite;
+}
+
+@keyframes btnSweep {
+
+    0%,
+    100% {
+        left: -75%;
+    }
+
+    50% {
+        left: 150%;
+    }
+}
+
+.ghostBtn {
+    padding: 1rem;
+    background: var(--theme-card);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+    border-radius: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.ghostBtn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ═══════════════ MAIN ARENA ═══════════════ */
+.arenaLayout {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    width: 100vw;
+    height: calc(100vh - 60px);
+    padding: 0;
+    gap: 0;
+}
+
+.pane {
+    background: rgba(12, 12, 22, 0.6);
+    backdrop-filter: blur(16px);
+    border-right: 1px solid var(--theme-border);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glassCard {
+    background: var(--theme-sidebar);
+    border: 1px solid var(--theme-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Subtle inner glow for panes */
+.pane::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 40px rgba(139, 92, 246, 0.03);
+    pointer-events: none;
+}
+
+/* Header overlays in panes */
+.paneHeader {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--theme-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggleBtnTopLeft {
+    position: static;
+    margin: 24px 24px 0 24px;
+    width: fit-content;
+    z-index: 20;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--purple);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+}
+
+.toggleBtnTopLeft:hover {
+    background: rgba(139, 92, 246, 0.25);
+    transform: translateY(-1px);
+}
+
+.verticalToggle {
+    background: var(--theme-card);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-subtext);
+    padding: 12px 6px;
+    cursor: pointer;
+    border-radius: 0 8px 8px 0;
+    font-size: 10px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.verticalToggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--theme-text);
+}
+
+.verticalToggleActive {
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border: none;
+    color: #fff;
+    padding: 12px 6px;
+    cursor: pointer;
+    border-radius: 0 8px 8px 0;
+    font-size: 10px;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+}

@@ -1,0 +1,283 @@
+/* ═══════════════════════════════════════════════════════════
+   GhostCode  ·  Shared Navbar
+═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&display=swap');
+
+/* ── Slide-in on mount ── */
+.nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 400;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    gap: 1rem;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+
+    /* glassmorphism base */
+    background: rgba(7, 7, 16, 0.5);
+    backdrop-filter: blur(20px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+    /* slide-in from top */
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1),
+        opacity 0.45s ease,
+        background 0.3s ease,
+        border-color 0.3s ease;
+}
+
+.nav.visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.nav.scrolled {
+    background: rgba(7, 7, 16, 0.82);
+    border-bottom-color: rgba(139, 92, 246, 0.18);
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Logo ── */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.logo:hover {
+    opacity: 0.85;
+}
+
+.logoMark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+    animation: logoGlow 3s ease-in-out infinite alternate;
+    flex-shrink: 0;
+}
+
+@keyframes logoGlow {
+    from {
+        box-shadow: 0 0 12px rgba(139, 92, 246, 0.45);
+    }
+
+    to {
+        box-shadow: 0 0 24px rgba(236, 72, 153, 0.55);
+    }
+}
+
+.logoWord {
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(90deg, #c4b5fd 20%, #f9a8d4 60%, #7dd3fc 100%);
+    background-size: 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: logoShimmer 4s linear infinite;
+}
+
+@keyframes logoShimmer {
+    from {
+        background-position: 0% 50%;
+    }
+
+    to {
+        background-position: 200% 50%;
+    }
+}
+
+/* ── Breadcrumb ── */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.breadHome {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.breadHome:hover {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.breadSep {
+    opacity: 0.4;
+}
+
+.breadCurrent {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 600;
+}
+
+/* ── Arena tag ── */
+.arenaTag {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.9rem;
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.28);
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(196, 181, 253, 0.9);
+    letter-spacing: 0.04em;
+}
+
+.arenaDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 8px #4ade80;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+/* ── Right section ── */
+.right {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
+}
+
+.greet {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.45);
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ghost {
+    padding: 0.38rem 0.95rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.ghost:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.38rem 1.1rem;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-family: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 0 18px rgba(139, 92, 246, 0.38);
+    transition: box-shadow 0.25s, transform 0.25s;
+}
+
+.pill:hover {
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6);
+    transform: translateY(-1px);
+}
+
+.duelBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.38rem 1.0rem;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-family: inherit;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+    transition: box-shadow 0.25s, transform 0.25s;
+}
+
+.duelBtn:hover {
+    box-shadow: 0 0 28px rgba(239, 68, 68, 0.55);
+    transform: translateY(-1px);
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+    .breadcrumb {
+        display: none;
+    }
+
+    .greet {
+        display: none;
+    }
+
+    .arenaTag span:first-child {
+        display: none;
+    }
+
+    .ghost {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.78rem;
+    }
+
+    .pill {
+        padding: 0.35rem 0.8rem;
+        font-size: 0.78rem;
+    }
+
+    .nav {
+        padding: 0 1rem;
+    }
+}

@@ -1,0 +1,187 @@
+/* TargetCursor.module.css */
+
+/* Important: We disable the default cursor by injecting this class into the html/body */
+:global(.globalCursorHide),
+:global(.globalCursorHide *) {
+    cursor: none !important;
+}
+
+.cursorContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+.dotTracker,
+.ringTracker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+}
+
+.dot {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    width: 8px;
+    height: 8px;
+    background-color: #ec4899;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ec4899;
+    transition: width 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+        height 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+        top 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+        left 0.3s cubic-bezier(0.23, 1, 0.32, 1),
+        background-color 0.3s,
+        box-shadow 0.3s;
+}
+
+.dotHover {
+    background-color: transparent;
+    box-shadow: none;
+    width: 4px;
+    height: 4px;
+    top: -2px;
+    left: -2px;
+    border: 1px solid #8b5cf6;
+}
+
+.ring {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    width: 40px;
+    height: 40px;
+    border: 1.5px solid rgba(139, 92, 246, 0.3);
+    border-radius: 50%;
+    animation: spinSlow 10s linear infinite;
+    transition: width 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+        height 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+        top 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+        left 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+        border-color 0.4s, background-color 0.4s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ringHover {
+    width: 56px;
+    height: 56px;
+    top: -28px;
+    left: -28px;
+    border-color: rgba(236, 72, 153, 0.8);
+    background-color: rgba(236, 72, 153, 0.05);
+    animation: spinFast 3s ease-in-out infinite alternate;
+}
+
+.crosshairV,
+.crosshairH {
+    position: absolute;
+    background-color: rgba(236, 72, 153, 0.5);
+    transition: background-color 0.3s, height 0.4s, width 0.4s;
+}
+
+.crosshairV {
+    width: 1px;
+    height: 8px;
+}
+
+.crosshairH {
+    width: 8px;
+    height: 1px;
+}
+
+.ringHover .crosshairV {
+    height: 16px;
+    background-color: rgba(236, 72, 153, 0.9);
+}
+
+.ringHover .crosshairH {
+    width: 16px;
+    background-color: rgba(236, 72, 153, 0.9);
+}
+
+.cornerTL,
+.cornerTR,
+.cornerBL,
+.cornerBR {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid transparent;
+    transition: border-color 0.3s, transform 0.4s;
+}
+
+.cornerTL {
+    top: -2px;
+    left: -2px;
+    border-top-color: rgba(34, 211, 238, 0.5);
+    border-left-color: rgba(34, 211, 238, 0.5);
+}
+
+.cornerTR {
+    top: -2px;
+    right: -2px;
+    border-top-color: rgba(34, 211, 238, 0.5);
+    border-right-color: rgba(34, 211, 238, 0.5);
+}
+
+.cornerBL {
+    bottom: -2px;
+    left: -2px;
+    border-bottom-color: rgba(34, 211, 238, 0.5);
+    border-left-color: rgba(34, 211, 238, 0.5);
+}
+
+.cornerBR {
+    bottom: -2px;
+    right: -2px;
+    border-bottom-color: rgba(34, 211, 238, 0.5);
+    border-right-color: rgba(34, 211, 238, 0.5);
+}
+
+.ringHover .cornerTL {
+    transform: translate(-4px, -4px);
+    border-color: #22d3ee;
+}
+
+.ringHover .cornerTR {
+    transform: translate(4px, -4px);
+    border-color: #22d3ee;
+}
+
+.ringHover .cornerBL {
+    transform: translate(-4px, 4px);
+    border-color: #22d3ee;
+}
+
+.ringHover .cornerBR {
+    transform: translate(4px, 4px);
+    border-color: #22d3ee;
+}
+
+@keyframes spinSlow {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinFast {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(180deg) scale(1.05);
+    }
+}

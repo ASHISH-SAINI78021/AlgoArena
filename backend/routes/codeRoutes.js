@@ -2,30 +2,67 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
-// Piston API Endpoint
-const PISTON_API = 'https://emkc.org/api/v2/piston/execute';
+// Wandbox API Endpoint (Free Alternative to Piston)
+const WANDBOX_API = 'https://wandbox.org/api/compile.json';
+
+const getWandboxCompiler = (lang) => {
+    switch (lang.toLowerCase()) {
+        case 'c++':
+        case 'c++ (gcc)':
+        case 'cpp':
+            return 'gcc-head';
+        case 'python':
+        case 'python 3':
+            return 'cpython-3.12.7';
+        case 'javascript':
+        case 'js':
+        case 'node.js':
+            return 'nodejs-20.17.0';
+        case 'java':
+            return 'openjdk-jdk-22+36';
+        case 'c':
+        case 'c (gcc)':
+            return 'gcc-head-c';
+        case 'rust':
+            return 'rust-1.82.0';
+        default:
+            return 'gcc-head';
+    }
+};
 
 router.post('/execute', async (req, res) => {
-    const { language, source, version } = req.body;
+    const { language, source, stdin } = req.body;
 
-    // Map common language names to Piston versions if needed
-    // For now we assume frontend sends correct Piston-compatible data
-    // OR we default to latest.
-    
     try {
-        const response = await axios.post(PISTON_API, {
-            language: language,
-            version: version || "*",
-            files: [
-                {
-                    content: source
-                }
-            ]
+        const compiler = getWandboxCompiler(language || "");
+        const response = await axios.post(WANDBOX_API, {
+            compiler: compiler,
+            code: source,
+            stdin: stdin || ""
         });
 
-        res.json(response.data);
+        const data = response.data;
+        
+        // Map Wandbox format to Piston format to maintain frontend compatibility
+        let stdout = data.program_output || "";
+        let stderr = (data.compiler_error || "") + (data.program_error || "");
+        let combinedOutput = "";
+        
+        if (data.compiler_error) combinedOutput += data.compiler_error + "\n";
+        if (data.program_message) combinedOutput += data.program_message;
+
+        res.json({
+            language: language,
+            version: "*",
+            run: {
+                stdout: stdout,
+                stderr: stderr,
+                code: parseInt(data.status) || 0,
+                output: combinedOutput.trim() || stdout || stderr
+            }
+        });
     } catch (error) {
-        console.error("Execution Error:", error.message);
+        console.error("Execution Error:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "Failed to execute code" });
     }
 });

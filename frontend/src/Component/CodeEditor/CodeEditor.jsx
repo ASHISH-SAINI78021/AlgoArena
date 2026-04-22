@@ -1,22 +1,37 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Sparkles, Github } from 'lucide-react';
+import { Sparkles, Github, Camera, Volume2, VolumeX } from 'lucide-react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
 import axios from '../../axios/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme, themes } from '../../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { Palette } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ExportModal from './ExportModal';
+import { useSound } from '../../hooks/useSound';
 
-const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider }) => {
+const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingComplexity, stdin, yDoc, provider, currentProblem, onRunComplete, disableAI }) => {
   const navigate = useNavigate();
+  const { theme, themeName, setThemeName } = useTheme();
+  const { playCompileSuccess, playCompileError, playGhostWhisper, isSoundEnabled, toggleSound } = useSound();
   console.log("Current API Base URL:", import.meta.env.VITE_API_BASE_URL);
   const [editorInstance, setEditorInstance] = useState(null);
   const [monacoInstance, setMonacoInstance] = useState(null);
   const sharedDataRef = useRef(null);
   const yTextRef = useRef(null);
-  const [language, setLanguage] = useState('javascript');
+  const lastProblemIdRef = useRef(null);
+  const currentProblemRef = useRef(null);
+  const [language, setLanguage] = useState('cpp');
+  const [stdinInput, setStdinInput] = useState(stdin || '');
+
+  // Sync stdin when the prop changes (e.g. new duel problem loaded)
+  useEffect(() => {
+    if (stdin !== undefined) setStdinInput(stdin);
+  }, [stdin]);
+
   const [userCount, setUserCount] = useState(0);
   const [users, setUsers] = useState([]);
   const [currentFileName, setCurrentFileName] = useState('');
@@ -29,14 +44,23 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
 
+  // Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
 
   // GitHub State
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
   const [isGithubConnected, setIsGithubConnected] = useState(false);
   const [githubUsername, setGithubUsername] = useState('');
   const [repoName, setRepoName] = useState('algo-arena-solutions');
-  const [commitMessage, setCommitMessage] = useState('Added solution from AlgoArena');
+  const [commitMessage, setCommitMessage] = useState('Added solution from GhostCode');
   const [isPushing, setIsPushing] = useState(false);
+
+  // Ghost Participant State
+  const [isGhostActive, setIsGhostActive] = useState(false);
+  const lastActivityRef = useRef(Date.now());
+  const lastGhostInterventionRef = useRef(0);
+  const ghostDecorationRef = useRef([]);
 
   // Check GitHub Status on Mount
   useEffect(() => {
@@ -122,10 +146,10 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
   // Boilerplate Templates
   const templates = {
-    javascript: `// AlgoArena JavaScript Env\nconsole.log("Hello World");`,
-    python: `# AlgoArena Python Env\nprint("Hello World")`,
-    cpp: `// AlgoArena C++ Env\n#include <iostream>\n\nint main() {\n    std::cout << "Hello World" << std::endl;\n    return 0;\n}`,
-    java: `// AlgoArena Java Env\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello World");\n    }\n}`
+    javascript: `// GhostCode JavaScript Env\nfunction solution() {\n    console.log("Hello World");\n}\nsolution();`,
+    python: `# GhostCode Python Env\nprint("Hello World")`,
+    cpp: `// GhostCode C++ Env\n#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    cout << "Hello World" << endl;\n    return 0;\n}`,
+    java: `// GhostCode Java Env\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello World");\n    }\n}`
   };
 
   const getRandomColor = () => {
@@ -136,7 +160,25 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
   const handleEditorDidMount = (editor, monaco) => {
     setEditorInstance(editor);
     setMonacoInstance(monaco);
+
+    if (editor.getModel()) {
+      editor.getModel().setEOL(0); // 0 = LF, 1 = CRLF. Forces LF to fix y-monaco off-by-one CRLF bugs.
+    }
   };
+
+  // ── Robust Auto-Save ──
+  useEffect(() => {
+    if (!editorInstance) return;
+    const disposable = editorInstance.onDidChangeModelContent(() => {
+      const val = editorInstance.getValue();
+      const probId = currentProblemRef.current?._id || currentProblemRef.current?.title;
+      if (probId && roomId && !yDoc) {
+        localStorage.setItem(`duel_persist_code_${roomId}`, val);
+        localStorage.setItem(`duel_persist_prob_${roomId}`, String(probId));
+      }
+    });
+    return () => disposable.dispose();
+  }, [editorInstance, roomId, yDoc]);
 
   useEffect(() => {
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
@@ -144,6 +186,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     const editor = editorInstance;
     const type = yDoc.getText('monaco');
     const sharedData = yDoc.getMap('sharedData');
+    const ghostMap = yDoc.getMap('ghostState');
     sharedDataRef.current = sharedData;
     yTextRef.current = type;
 
@@ -201,6 +244,34 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         }
       });
 
+      // Add Ghost Cursor Styling if active
+      if (ghostMap.get('active')) {
+        styleContent += `
+            .ghost-cursor {
+                background-color: #8b5cf6 !important;
+                width: 2px !important;
+            }
+            .ghost-cursor-head {
+                border-left: 2px solid #8b5cf6 !important;
+            }
+            .ghost-cursor-head::after {
+                content: "AI Ghost 👻";
+                background-color: #8b5cf6;
+                color: white;
+                padding: 2px 6px;
+                font-size: 10px;
+                border-radius: 4px;
+                position: absolute;
+                top: -20px;
+                left: -2px;
+                white-space: nowrap;
+                z-index: 110;
+                font-weight: bold;
+                box-shadow: 0 0 10px #8b5cf6;
+            }
+         `;
+      }
+
       setUsers(activeUsers);
 
       let styleEl = document.getElementById('yjs-cursor-styles');
@@ -214,6 +285,32 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
     provider.awareness.on('change', updateUsers);
     updateUsers();
+
+    // Track activity for AI Ghost
+    const handleLocalActivity = () => {
+      const now = Date.now();
+      lastActivityRef.current = now;
+      // Also update awareness so the leader knows someone is active
+      provider.awareness.setLocalStateField('lastActive', now);
+      console.log('👻 [Activity] User activity detected at', new Date(now).toLocaleTimeString());
+    };
+    editor.onDidChangeModelContent(handleLocalActivity);
+    editor.onMouseDown(handleLocalActivity);
+    editor.onKeyDown(handleLocalActivity);
+    console.log('👻 [Activity] Activity tracking initialized for AI Ghost');
+
+    // Initialize/Observe Shared Ghost Map
+    const syncGhost = () => {
+      setIsGhostActive(ghostMap.get('active') || false);
+      const hint = ghostMap.get('hint');
+      const triggerId = ghostMap.get('triggerId');
+      if (hint && triggerId !== lastGhostInterventionRef.current) {
+        lastGhostInterventionRef.current = triggerId;
+        toast(hint, { icon: '👻', duration: 5000, style: { background: '#8b5cf6', color: '#fff' } });
+      }
+    };
+    ghostMap.observe(syncGhost);
+    syncGhost();
 
     // Sync language from shared state
     const syncLanguage = () => {
@@ -234,26 +331,47 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
         if (type.length === 0) {
           try {
             const res = await axios.get(`/code/${roomId}`);
+
+            // ⚠️ RACE GUARD: Re-check after await — another effect may have inserted content while we waited
+            if (type.length > 0) return;
+
             if (res.data && res.data.code && res.data.code.trim() !== '') {
               // Found saved code in DB!
-              const savedLang = res.data.language || 'javascript';
+              const savedLang = res.data.language || 'cpp';
               setLanguage(savedLang);
               type.insert(0, res.data.code);
               sharedData.set('language', savedLang);
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             } else {
-              // No saved code, use default template
-              const currentLang = sharedLang || 'javascript';
+              // No saved code — use problem boilerplate if a problem is selected, else default
+              const currentLang = sharedLang || 'cpp';
               setLanguage(currentLang);
-              type.insert(0, templates[currentLang]);
+              const pendingProblem = currentProblemRef.current;
+              if (pendingProblem) {
+                const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
+                type.insert(0, boilerplate);
+                lastProblemIdRef.current = pendingProblem._id || pendingProblem.title;
+                if (pendingProblem.title) setCurrentFileName(pendingProblem.title);
+              } else {
+                type.insert(0, templates[currentLang]);
+              }
               sharedData.set('language', currentLang);
             }
           } catch (error) {
             console.error("Failed to fetch recovery code:", error);
-            // Default fallback
-            const currentLang = sharedLang || 'javascript';
+            // ⚠️ RACE GUARD: bail if content appeared during the failed request too
+            if (type.length > 0) return;
+            const currentLang = sharedLang || 'cpp';
             setLanguage(currentLang);
-            type.insert(0, templates[currentLang]);
+            const pendingProblem = currentProblemRef.current;
+            if (pendingProblem) {
+              const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
+              type.insert(0, boilerplate);
+              lastProblemIdRef.current = pendingProblem._id || pendingProblem.title;
+              if (pendingProblem.title) setCurrentFileName(pendingProblem.title);
+            } else {
+              type.insert(0, templates[currentLang]);
+            }
           }
         } else {
           // If document has content, sync the language state to match the shared Yjs state
@@ -275,6 +393,13 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
       provider.on('sync', handleSync);
     }
 
+    const handleInsertAICode = (e) => {
+      if (editorInstance) {
+        editorInstance.setValue(e.detail);
+      }
+    };
+    window.addEventListener('insertAICode', handleInsertAICode);
+
     return () => {
       binding.destroy();
       provider.off('sync', handleSync);
@@ -284,6 +409,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
       // Cleanup styles on unmount
       const styleEl = document.getElementById('yjs-cursor-styles');
       if (styleEl) styleEl.innerHTML = '';
+      window.removeEventListener('insertAICode', handleInsertAICode);
     };
   }, [yDoc, provider, roomId, username, editorInstance, monacoInstance]);
 
@@ -295,22 +421,229 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     if (sharedDataRef.current) {
       sharedDataRef.current.set('language', newLang);
     }
+  };
 
-    // Auto-switch template if the code is empty or untouched (any of the default templates)
-    if (editorInstance && yTextRef.current && yDoc) {
-      // ultra-robust check: remove all whitespace for comparison
-      const collapse = (str) => str?.replace(/\s+/g, '') || '';
-      const currentCodeCollapsed = collapse(editorInstance.getValue());
-
-      const isAnyDefaultTemplate = Object.values(templates).some(t => collapse(t) === currentCodeCollapsed);
-      const isEmpty = currentCodeCollapsed === '';
-
-      if (isEmpty || isAnyDefaultTemplate) {
-        yDoc.transact(() => {
-          yTextRef.current.delete(0, yTextRef.current.length);
-          yTextRef.current.insert(0, templates[newLang]);
-        });
+  // AI Ghost Loop (Leader only)
+  useEffect(() => {
+    if (!isGhostActive || !editorInstance || !provider) {
+      if (!isGhostActive) {
+        console.log('👻 [Ghost] Ghost is NOT active. Click "Summon Ghost" to activate.');
       }
+      return;
+    }
+
+    console.log('👻 [Ghost] Ghost is ACTIVE! Starting inactivity monitoring loop...');
+
+    const interval = setInterval(async () => {
+      // Leader is the user with lowest ClientID
+      const states = provider.awareness.getStates();
+      const clientIds = Array.from(states.keys()).sort((a, b) => a - b);
+      const isLeader = clientIds[0] === provider.awareness.clientID;
+
+      console.log(`👻 [Ghost Loop] Running... My ClientID: ${provider.awareness.clientID}, Leader ID: ${clientIds[0]}, Am I Leader: ${isLeader}`);
+
+      if (!isLeader) {
+        console.log('👻 [Ghost Loop] I am not the leader. Skipping this cycle.');
+        return;
+      }
+
+      // Calculate global inactivity
+      let lastGlobalActivity = lastActivityRef.current;
+      states.forEach(state => {
+        if (state.lastActive && state.lastActive > lastGlobalActivity) {
+          lastGlobalActivity = state.lastActive;
+        }
+      });
+
+      const timeSinceLastActivity = Date.now() - lastGlobalActivity;
+      console.log(`👻 [Ghost Loop] ⏱️  Leader check. Inactive for: ${Math.floor(timeSinceLastActivity / 1000)}s / 15s required`);
+
+      // Stop if activity is recent
+      if (timeSinceLastActivity < 15000) {
+        console.log(`👻 [Ghost Loop] ✋ Still active recently. Waiting...`);
+        return;
+      }
+
+      console.log(`👻 [Ghost Loop] 🚨 TRIGGERING GHOST REVIEW! Inactivity threshold reached!`);
+      toast.loading('Ghost is analyzing your code...', { id: 'ghost-analyzing', icon: '👻' });
+
+      try {
+        const code = editorInstance.getValue();
+        const userCursors = users.map(u => ({ name: u.name, id: u.id }));
+
+        console.log(`👻 [Ghost] Sending review request to backend...`);
+        const res = await axios.post('/ai/ghost-review', {
+          code,
+          language,
+          problemContext: currentProblem,
+          userCursors
+        });
+
+        toast.dismiss('ghost-analyzing');
+        console.log(`👻 [Ghost] Backend response:`, res.data);
+
+        if (res.data.shouldIntervene) {
+          console.log(`👻 [Ghost] ✅ Ghost decided to intervene!`);
+          playGhostWhisper();
+          const ghostMap = yDoc.getMap('ghostState');
+
+          // Leader inserts the code into Yjs text if present
+          if (res.data.codeToInsert && res.data.lineNumber) {
+            console.log(`👻 [Ghost] 📝 Inserting code at line ${res.data.lineNumber}:`, res.data.codeToInsert);
+            try {
+              const model = editorInstance.getModel();
+              const targetLine = Math.min(res.data.lineNumber, model.getLineCount());
+              const offset = model.getOffsetAt({ lineNumber: targetLine, column: model.getLineMaxColumn(targetLine) });
+
+              const textToInsert = `\n${res.data.codeToInsert}`;
+
+              yDoc.transact(() => {
+                yTextRef.current.insert(offset, textToInsert);
+                ghostMap.set('lineNumber', targetLine + 1);
+                ghostMap.set('column', 1);
+                ghostMap.set('hint', res.data.comment);
+                ghostMap.set('triggerId', Date.now());
+              });
+              console.log(`👻 [Ghost] ✅ Code inserted successfully!`);
+              toast.success('Ghost wrote some code for you!', { icon: '👻' });
+            } catch (insertErr) {
+              console.error('👻 [Ghost] ❌ Failed to insert code:', insertErr);
+              toast.error('Ghost failed to type...', { icon: '👻' });
+            }
+          } else {
+            console.log(`👻 [Ghost] 💬 Showing hint only (no code insertion)`);
+            yDoc.transact(() => {
+              ghostMap.set('lineNumber', res.data.lineNumber);
+              ghostMap.set('column', res.data.column || 1);
+              ghostMap.set('hint', res.data.comment);
+              ghostMap.set('triggerId', Date.now()); // New trigger for everyone
+            });
+          }
+
+          // Clear cursor after 10s
+          setTimeout(() => {
+            ghostMap.set('lineNumber', null);
+          }, 10000);
+        } else {
+          console.log(`👻 [Ghost] ℹ️  Ghost decided NOT to intervene. Code looks good!`);
+          toast('Ghost is watching silently...', { icon: '👻', duration: 3000 });
+        }
+      } catch (err) {
+        console.error('👻 [Ghost] ❌ Error during ghost review:', err);
+        toast.dismiss('ghost-analyzing');
+        toast.error('Ghost encountered an error: ' + (err.response?.data?.error || err.message), { icon: '👻' });
+      }
+    }, 15000);
+
+    return () => {
+      console.log('👻 [Ghost] Cleaning up ghost loop...');
+      clearInterval(interval);
+    };
+  }, [isGhostActive, editorInstance, provider, users, language, currentProblem, yDoc]);
+
+  // AI Ghost Visual Decorations
+  useEffect(() => {
+    if (!editorInstance || !monacoInstance || !isGhostActive) {
+      if (editorInstance) ghostDecorationRef.current = editorInstance.deltaDecorations(ghostDecorationRef.current, []);
+      return;
+    }
+
+    const ghostMap = yDoc.getMap('ghostState');
+    const updateVisuals = () => {
+      const line = ghostMap.get('lineNumber');
+      const col = ghostMap.get('column') || 1;
+
+      if (line) {
+        ghostDecorationRef.current = editorInstance.deltaDecorations(ghostDecorationRef.current, [
+          {
+            range: new monacoInstance.Range(line, col, line, col + 1),
+            options: {
+              className: 'ghost-cursor',
+              beforeContentClassName: 'ghost-cursor-head',
+              isWholeLine: false
+            }
+          }
+        ]);
+      } else {
+        ghostDecorationRef.current = editorInstance.deltaDecorations(ghostDecorationRef.current, []);
+      }
+    };
+
+    ghostMap.observe(updateVisuals);
+    updateVisuals();
+
+    return () => {
+      ghostMap.unobserve(updateVisuals);
+      if (editorInstance) ghostDecorationRef.current = editorInstance.deltaDecorations(ghostDecorationRef.current, []);
+    };
+  }, [isGhostActive, editorInstance, monacoInstance, yDoc]);
+
+
+  // Keep currentProblemRef always up to date (used by handleSync)
+  useEffect(() => {
+    currentProblemRef.current = currentProblem;
+  }, [currentProblem]);
+
+  // Handle Problem Change: Always insert boilerplate immediately (deduplicated by ID)
+  useEffect(() => {
+    if (!currentProblem) return;
+
+    // Keep ref current
+    currentProblemRef.current = currentProblem;
+
+    // If Yjs not ready yet, handleSync will pick it up from currentProblemRef
+    if (!editorInstance) return;
+
+    const problemId = currentProblem._id || currentProblem.title;
+    if (problemId && problemId === lastProblemIdRef.current) return;
+
+    // ── RECOVERY LOGIC (Priority 1: Only in Isolated/Standalone Mode) ──
+    const savedCode = localStorage.getItem(`duel_persist_code_${roomId}`);
+    const savedProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
+
+    if (savedCode && savedProbId === String(problemId) && !yDoc) {
+      // Small delay to ensure editor is ready for value update
+      editorInstance.setValue(savedCode);
+      lastProblemIdRef.current = problemId;
+      if (currentProblem.title) setCurrentFileName(currentProblem.title);
+      return;
+    }
+
+    // ── BOILERPLATE LOGIC (Priority 2) ──
+    const boilerplate = currentProblem.boilerplates?.['cpp'] || currentProblem.boilerplates?.[language] || templates['cpp'] || templates[language];
+
+    const model = editorInstance.getModel();
+    if (model) {
+      editorInstance.executeEdits('problem-change', [{
+        range: model.getFullModelRange(),
+        text: boilerplate
+      }]);
+    }
+
+    // Only mark as done AFTER successful replacement
+    lastProblemIdRef.current = problemId;
+    if (currentProblem.title) setCurrentFileName(currentProblem.title);
+  }, [currentProblem, editorInstance, yDoc, language]); // Added language to sync
+
+  const handleResetBoilerplate = () => {
+    if (editorInstance) {
+      const boilerplate = currentProblem?.boilerplates?.['cpp'] || currentProblem?.boilerplates?.[language] || templates['cpp'] || templates[language];
+      // Clear the ID ref so the problem-change effect can cleanly re-apply if needed
+      lastProblemIdRef.current = null;
+
+      const model = editorInstance.getModel();
+      if (model) {
+        editorInstance.executeEdits('reset-boilerplate', [{
+          range: model.getFullModelRange(),
+          text: boilerplate
+        }]);
+      }
+
+      // Re-stamp after transact so the problem-change effect doesn't double-fire
+      if (currentProblem) {
+        lastProblemIdRef.current = currentProblem._id || currentProblem.title;
+      }
+      toast.success("Boilerplate reset!");
     }
   };
 
@@ -328,7 +661,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `algoarena_code_${roomId}.${extension}`;
+    link.download = `ghostcode_code_${roomId}.${extension}`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -385,9 +718,10 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
     if (!editorInstance) return;
     const sourceCode = editorInstance.getValue();
     setIsRunning(true);
-    setOutput([]);
+    setIsAnalyzingComplexity(false);
+    setOutput([]); // Clear output
 
-    // Map language to Piston API format
+    // Map language to Piston API format (Our backend translates this to Wandbox)
     const languageMap = {
       javascript: 'javascript',
       python: 'python',
@@ -399,19 +733,64 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
       const response = await axios.post('/code/execute', {
         language: languageMap[language],
         source: sourceCode,
+        stdin: stdinInput,
         version: '*'
       });
 
       if (response.data.run) {
-        setOutput(response.data.run.output);
+        const { stdout, stderr, code } = response.data.run;
+        const outputBlocks = [];
+        if (stdout) outputBlocks.push({ type: 'stdout', content: stdout });
+        if (stderr) outputBlocks.push({ type: 'stderr', content: stderr });
+        if (!stdout && !stderr) outputBlocks.push({ type: 'info', content: 'Program executed with no output.' });
+
+        setOutput(outputBlocks);
+
+        if (stderr || (code && code !== 0)) {
+          playCompileError();
+        } else {
+          playCompileSuccess();
+        }
+
+        if (onRunComplete) {
+          onRunComplete({ stdout, stderr, code, sourceCode });
+        }
+
+        // Hide initial "Running..." loader
+        setIsRunning(false);
+
+        // Only analyze complexity if the code ran successfully
+        if (!stderr && (!code || code === 0)) {
+          // Start "Analyzing Complexity..." loader
+          setIsAnalyzingComplexity(true);
+
+          try {
+            // Analyze complexity
+            const res = await axios.post('/ai/analyze-complexity', {
+              code: sourceCode,
+              language: language
+            });
+
+            if (res.data.analysis) {
+              setOutput(prev => [...prev, { type: 'info', content: "\n--- Performance Analysis ---\n" + res.data.analysis }]);
+            }
+          } catch (err) {
+            console.error("Complexity Error:", err);
+          } finally {
+            setIsAnalyzingComplexity(false);
+          }
+        }
+
       } else {
-        setOutput("No output returned");
+        setOutput([{ type: 'stderr', content: "No output returned from server" }]);
+        setIsRunning(false);
       }
 
     } catch (error) {
       console.error(error);
-      setOutput("Error executing code: " + (error.response?.data?.error || error.message));
-    } finally {
+      const errorMsg = error.response?.data?.error || error.message;
+      setOutput([{ type: 'stderr', content: "Error executing code: " + errorMsg }]);
+      playCompileError();
       setIsRunning(false);
     }
   };
@@ -519,51 +898,200 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
 
   return (
     <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '10px', background: '#1e1e1e', color: '#fff', display: 'flex', gap: '10px', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 'bold', color: '#38bdf8' }}>{currentFileName || 'Untitled Arena'}</span>
-          <span style={{ fontSize: '10px', color: '#666' }}>ID: {roomId}</span>
+      <div style={{
+        padding: '8px 12px',
+        background: theme.sidebar,
+        backdropFilter: `blur(${theme.blur})`,
+        color: theme.text,
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        alignItems: 'center',
+        borderBottom: `1px solid ${theme.border}`,
+        transition: 'all 0.3s ease',
+        minHeight: '50px'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '120px' }}>
+          <span style={{ fontWeight: 'bold', color: theme.accent, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' }}>{currentFileName || 'Untitled Arena'}</span>
+          <span style={{ fontSize: '10px', color: theme.subtext }}>ID: {roomId}</span>
         </div>
-        <button onClick={copyRoomId} style={{ background: '#444', border: 'none', color: '#fff', padding: '5px 8px', cursor: 'pointer', fontSize: '12px' }}>Copy Link</button>
+        <button onClick={copyRoomId} style={{ background: theme.card, border: `1px solid ${theme.border}`, color: theme.text, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>Copy Link</button>
 
-        <div style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
-          {users.map((u, i) => (
-            <div key={i} style={{
-              background: u.color,
-              color: '#fff',
-              padding: '2px 8px',
-              borderRadius: '10px',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              border: u.name === username ? '1px solid #fff' : 'none'
-            }} title={u.name}>
-              {u.name} {u.name === username ? '(You)' : ''}
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '6px' }}>
+          {/* Connected users label */}
+          <span style={{ fontSize: '10px', color: theme.subtext, whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+            USERS
+          </span>
+          {[...users, ...(isGhostActive ? [{ name: 'AI Ghost', color: '#8b5cf6', isGhost: true }] : [])].map((u, i) => {
+            const isMe = u.name === username;
+            const initial = u.isGhost ? '👻' : u.name?.[0]?.toUpperCase() || '?';
+            return (
+              <div key={i} title={u.name} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: `rgba(${u.isGhost ? '139,92,246' : '255,255,255'},0.07)`,
+                border: `1.5px solid ${isMe ? '#fff' : u.color}`,
+                borderRadius: '100px',
+                padding: '3px 10px 3px 4px',
+                boxShadow: `0 0 12px ${u.color}55`,
+                animation: u.isGhost ? 'pulse-purple 2s infinite' : 'none',
+                transition: 'box-shadow 0.2s',
+              }}>
+                {/* Avatar circle */}
+                <div style={{
+                  width: '22px', height: '22px', borderRadius: '50%',
+                  background: u.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: u.isGhost ? '12px' : '11px',
+                  fontWeight: '800',
+                  color: '#fff',
+                  flexShrink: 0,
+                  boxShadow: `0 0 8px ${u.color}88`,
+                }}>
+                  {initial}
+                </div>
+
+                {/* Name */}
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: isMe ? '#fff' : 'rgba(255,255,255,0.82)',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '80px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {u.isGhost ? 'AI Ghost' : u.name}
+                </span>
+
+                {/* Online dot */}
+                {!u.isGhost && (
+                  <div style={{
+                    width: '6px', height: '6px', borderRadius: '50%',
+                    background: '#4ade80',
+                    boxShadow: '0 0 6px #4ade80',
+                    animation: 'pulse-green 2s ease-in-out infinite',
+                    flexShrink: 0,
+                  }} />
+                )}
+
+                {/* "You" badge */}
+                {isMe && (
+                  <span style={{
+                    fontSize: '9px', fontWeight: '700',
+                    background: 'rgba(255,255,255,0.15)',
+                    borderRadius: '4px',
+                    padding: '1px 5px',
+                    color: '#fff',
+                    letterSpacing: '0.06em',
+                    flexShrink: 0,
+                  }}>YOU</span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div style={{ flex: 1 }}></div>
 
-        <select value={language} onChange={handleLanguageChange} style={{ background: '#333', color: '#fff', padding: '5px' }}>
-          <option value="javascript">JavaScript</option>
-          <option value="python">Python</option>
-          <option value="cpp">C++</option>
-          <option value="java">Java</option>
-        </select>
-        <button onClick={saveCode} style={{ background: '#007acc', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Save</button>
-        <button onClick={downloadCode} style={{ background: '#6c757d', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Download</button>
-        <button onClick={() => setIsAIModalOpen(true)} style={{ background: '#8b5cf6', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <Sparkles size={14} /> AI
-        </button>
-        <button onClick={() => {
-          if (!isGithubConnected) handleConnectGithub();
-          else setIsGithubModalOpen(true);
-        }} style={{ background: '#24292e', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <Github size={14} /> {isGithubConnected ? 'Push' : 'Connect'}
-        </button>
-        <button onClick={runCode} style={{ background: '#28a745', border: 'none', color: '#fff', padding: '5px 10px', cursor: 'pointer' }}>Run</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Sound Toggle */}
+          <button
+            onClick={toggleSound}
+            title={isSoundEnabled ? "Mute sounds" : "Enable sounds"}
+            style={{ background: 'transparent', border: 'none', color: isSoundEnabled ? theme.accent : theme.subtext, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          >
+            {isSoundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+
+          {/* Theme Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: theme.card, padding: '3px 8px', borderRadius: '8px', border: `1px solid ${theme.border}` }}>
+            <Palette size={14} color={theme.accent} />
+            <select
+              value={themeName}
+              onChange={(e) => setThemeName(e.target.value)}
+              style={{
+                background: 'transparent',
+                color: theme.text,
+                border: 'none',
+                fontSize: '12px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {Object.entries(themes).map(([key, t]) => (
+                <option key={key} value={key} style={{ background: theme.bg }}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <select value={language} onChange={handleLanguageChange} style={{ background: theme.card, color: theme.text, border: `1px solid ${theme.border}`, padding: '5px 8px', borderRadius: '6px', outline: 'none', fontSize: '12px' }}>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <button onClick={saveCode} style={{ background: theme.primary, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px', boxShadow: `0 4px 14px ${theme.primary}44`, whiteSpace: 'nowrap' }}>Save</button>
+          <button onClick={downloadCode} style={{ background: theme.card, border: `1px solid ${theme.border}`, color: theme.text, padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>Download</button>
+          <button onClick={() => setIsExportModalOpen(true)} style={{ background: 'linear-gradient(135deg, #a855f7 0%, #3b82f6 100%)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', boxShadow: '0 4px 14px rgba(168, 85, 247, 0.4)', whiteSpace: 'nowrap' }}>
+            <Camera size={14} color="#fff" /> Share
+          </button>
+
+          {!disableAI && (
+            <button onClick={() => setIsAIModalOpen(true)} style={{ background: '#8b5cf6', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)', whiteSpace: 'nowrap' }}>
+              <Sparkles size={14} /> AI
+            </button>
+          )}
+
+          <button onClick={() => {
+            if (!isGithubConnected) handleConnectGithub();
+            else setIsGithubModalOpen(true);
+          }} style={{ background: '#24292e', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <Github size={14} /> {isGithubConnected ? 'Push' : 'Connect'}
+          </button>
+
+          {!disableAI && (
+            <button
+              onClick={() => {
+                const ghostMap = yDoc.getMap('ghostState');
+                const currentActive = ghostMap.get('active');
+                ghostMap.set('active', !currentActive);
+                if (!currentActive) {
+                  toast.success("Ghost Participant Summoned!", { icon: '👻' });
+                  console.log('👻 [Ghost] Ghost activated by user! Check console for activity logs.');
+                } else {
+                  toast('Ghost dismissed', { icon: '👻' });
+                  console.log('👻 [Ghost] Ghost deactivated by user.');
+                }
+              }}
+              title={isGhostActive ? "Click to dismiss the AI Ghost" : "Activate AI Ghost - will write code hints after 30s of inactivity"}
+              style={{
+                background: isGhostActive ? 'rgba(139, 92, 246, 0.2)' : theme.card,
+                border: `1px solid ${isGhostActive ? '#8b5cf6' : theme.border}`,
+                color: isGhostActive ? '#a78bfa' : theme.text,
+                padding: '6px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Sparkles size={14} color={isGhostActive ? '#d8b4fe' : theme.accent} />
+              {isGhostActive ? "Release Ghost" : "Summon Ghost"}
+            </button>
+          )}
+
+          <button onClick={handleResetBoilerplate} style={{ background: theme.card, border: `1px solid ${theme.border}`, color: theme.text, padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }} title="Reset boilerplate">Reset</button>
+          <button onClick={runCode} style={{ background: '#22c55e', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)', whiteSpace: 'nowrap' }}>Run</button>
+        </div>
       </div>
 
       {/* AI Prompt Modal */}
@@ -915,16 +1443,67 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, yDoc, provider 
           </div>
         );
       })()}
-      <Editor
-        height="90vh"
-        theme="vs-dark"
-        defaultLanguage={language}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <Editor
+          height="100%"
+          theme={theme.monaco}
+          defaultLanguage={language}
+          language={language}
+          onMount={handleEditorDidMount}
+          options={{
+            minimap: { enabled: false },
+            fontSize: 16,
+            automaticLayout: true,
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            padding: { top: 20 }
+          }}
+        />
+      </div>
+
+      {/* ── Stdin Terminal Panel ── */}
+      <div style={{
+        background: '#0a0f1a',
+        borderTop: `1px solid ${theme.border}`,
+        padding: '8px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        maxHeight: '140px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+          <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase' }}>$ stdin</span>
+          <span style={{ fontSize: '9px', color: '#334155', fontStyle: 'italic' }}>Editable — passed to your program on Run</span>
+        </div>
+        <textarea
+          value={stdinInput}
+          onChange={e => setStdinInput(e.target.value)}
+          placeholder="Type your program input here, one value per line…"
+          spellCheck={false}
+          style={{
+            background: 'transparent',
+            border: '1px solid #1e293b',
+            borderRadius: '6px',
+            color: '#22c55e',
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            fontSize: '13px',
+            outline: 'none',
+            padding: '6px 10px',
+            resize: 'none',
+            height: '72px',
+            width: '100%',
+            lineHeight: '1.6',
+            boxSizing: 'border-box'
+          }}
+        />
+      </div>
+      {/* Modals placed here */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        code={editorInstance ? editorInstance.getValue() : ''}
         language={language}
-        onMount={handleEditorDidMount}
-        options={{
-          minimap: { enabled: false },
-          fontSize: 14,
-        }}
+        username={username}
+        problemTitle={currentProblem?.title || 'Arena Setup'}
       />
     </div>
   );

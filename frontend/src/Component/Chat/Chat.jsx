@@ -11,6 +11,13 @@ const Chat = ({ socket, yDoc, roomId, username, color, isOpen, setIsOpen, unread
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const playNotificationSound = () => {
+        // High quality notification ping
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+        audio.volume = 0.4;
+        audio.play().catch(err => console.log('Audio playback prevented', err));
+    };
+
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -66,13 +73,12 @@ const Chat = ({ socket, yDoc, roomId, username, color, isOpen, setIsOpen, unread
             setMessages(yMessages.toArray());
 
             // Handle notifications for remote messages
-            // In y-websocket, event.transaction.local is false for remote updates
-            if (!event.transaction.local && !isOpen) {
-                const addedCount = event.changes.added.size;
-                if (addedCount > 0) {
-                    const lastMsg = yMessages.get(yMessages.length - 1);
-                    if (lastMsg && lastMsg.username !== username) {
-                        setUnreadCount((prev) => prev + addedCount);
+            if (event.changes.added.size > 0) {
+                const lastMsg = yMessages.get(yMessages.length - 1);
+                if (lastMsg && lastMsg.username !== username) {
+                    playNotificationSound();
+                    if (!isOpen) {
+                        setUnreadCount((prev) => prev + event.changes.added.size);
                         toast(`New message from ${lastMsg.username}`, {
                             icon: '💬',
                             duration: 3000,
@@ -95,19 +101,62 @@ const Chat = ({ socket, yDoc, roomId, username, color, isOpen, setIsOpen, unread
         };
     }, [yDoc, isOpen, setUnreadCount, username]);
 
+    // ── FALLBACK FOR DUEL ARENA (NO YDOC) ──
+    useEffect(() => {
+        if (!socket || yDoc) return; // Only use socket handler if yDoc is absent
+
+        const handleReceiveChat = (chatData) => {
+            setMessages((prev) => [...prev, chatData]);
+
+            // Handle remote messages
+            if (chatData.username !== username) {
+                playNotificationSound();
+                if (!isOpen) {
+                    setUnreadCount((prev) => prev + 1);
+                    toast(`New message from ${chatData.username}`, {
+                        icon: '💬',
+                        duration: 3000,
+                        style: {
+                            borderRadius: '10px',
+                            background: '#1e293b',
+                            color: '#fff',
+                            border: '1px solid #38bdf8'
+                        },
+                    });
+                }
+            }
+        };
+
+        socket.on('receive-chat-message', handleReceiveChat);
+
+        return () => {
+            socket.off('receive-chat-message', handleReceiveChat);
+        };
+    }, [socket, yDoc, isOpen, setUnreadCount, username]);
+
     const handleSend = (e) => {
         e.preventDefault();
-        if (message.trim() && yDoc) {
-            const yMessages = yDoc.getArray('chat');
-            const chatData = {
-                id: Date.now() + Math.random().toString(36).substr(2, 9),
-                message: message.trim(),
-                username,
-                color,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            yMessages.push([chatData]);
+        if (message.trim()) {
+            if (yDoc) {
+                const yMessages = yDoc.getArray('chat');
+                const chatData = {
+                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                    message: message.trim(),
+                    username,
+                    color,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+                yMessages.push([chatData]);
+            } else if (socket) {
+                // Determine format for target room
+                const targetRoomId = roomId.toString().startsWith('duel-') ? roomId : `duel-${roomId}`;
+                socket.emit('send-chat-message', {
+                    roomId: targetRoomId,
+                    message: message.trim(),
+                    username,
+                    color
+                });
+            }
             setMessage('');
         }
     };

@@ -1,0 +1,221 @@
+/* Root layout */
+.root {
+    position: relative;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 20% 50%, rgba(239, 68, 68, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(249, 115, 22, 0.06) 0%, transparent 60%),
+        #070710;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+/* Lobby */
+.lobbyContainer {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+}
+
+.lobbyCard {
+    background: rgba(15, 15, 28, 0.92);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 80px rgba(239, 68, 68, 0.06);
+}
+
+.input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #f0f0ff;
+    font-size: 15px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.input:focus {
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.input::placeholder {
+    color: #475569;
+}
+
+.primaryBtn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.primaryBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(239, 68, 68, 0.4);
+}
+
+.ghostBtn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.ghostBtn:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+/* Waiting Screen Dots */
+.dotLoader {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.dotLoader span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    animation: bounce 1.2s infinite;
+}
+
+.dotLoader span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dotLoader span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translateY(-8px);
+        opacity: 1;
+    }
+}
+
+/* Battle Layout */
+.battleHeader {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: rgba(10, 10, 20, 0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 20px;
+    flex-shrink: 0;
+}
+
+.battleLayout {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 90px);
+    overflow: hidden;
+}
+
+/* Problem panel */
+.problemPanel {
+    width: 380px;
+    min-width: 300px;
+    background: rgba(10, 10, 20, 0.8);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 20px;
+    overflow-y: auto;
+    backdrop-filter: blur(16px);
+}
+
+/* Editor + output */
+.editorPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e1e;
+    min-width: 0;
+}
+
+.editorToolbar {
+    padding: 10px 16px;
+    background: #252526;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.runBtn {
+    padding: 7px 18px;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.15s;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+.runBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.runBtn:not(:disabled):hover {
+    transform: translateY(-1px);
+}
+
+.output {
+    padding: 14px;
+    background: #0d0d14;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    max-height: 150px;
+    overflow-y: auto;
+}

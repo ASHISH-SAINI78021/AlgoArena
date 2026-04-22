@@ -17,8 +17,8 @@ async function testQwenModel() {
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://algoarena.com',
-        'X-Title': 'AlgoArena Code Editor'
+        'HTTP-Referer': 'https://ghostcode.com',
+        'X-Title': 'GhostCode Code Editor'
       },
       timeout: 15000
     });
@@ -28,7 +28,7 @@ async function testQwenModel() {
     console.log("─".repeat(60));
     console.log(response.data.choices[0].message.content);
     console.log("─".repeat(60));
-    console.log("\n✅ AI code generation is ready! Try it in your AlgoArena UI.");
+    console.log("\n✅ AI code generation is ready! Try it in your GhostCode UI.");
     process.exit(0);
     
   } catch (error) {

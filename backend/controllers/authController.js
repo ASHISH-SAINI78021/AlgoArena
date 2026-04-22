@@ -15,6 +15,7 @@ const generateRefreshToken = (user) => {
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    console.log(req.body);
     console.log(`[Auth] Signup Request: username=${username}, email=${email}`);
 
     // Check existing
@@ -50,6 +51,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
+    console.log("User : ", user);
     if (!user) return res.status(400).json({ error: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -60,12 +62,23 @@ exports.login = async (req, res) => {
     const refreshToken = generateRefreshToken(user);
 
     // Send Refresh Token as HttpOnly Cookie
-    res.cookie('refreshToken', refreshToken, {
+    const isProd = process.env.NODE_ENV === 'production';
+    console.log(`[Auth] Setting cookie. isProd: ${isProd}, user: ${user.email}`);
+    
+    const cookieOptions = {
       httpOnly: true,
-      secure: true, // Always true for SameSite: None 
-      sameSite: 'none', // Required for cross-domain cookies (Vercel -> Render)
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+      secure: isProd,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
+    };
+
+    if (isProd) {
+      cookieOptions.sameSite = 'none';
+    }
+    // On local, we omit sameSite to allow browser defaults, or set to lax explicitly
+    // Some browsers are picky about localhost ports
+
+    res.cookie('refreshToken', refreshToken, cookieOptions);
 
     res.json({ accessToken, user: { id: user._id, username: user.username, email: user.email } });
   } catch (error) {
@@ -77,12 +90,22 @@ exports.login = async (req, res) => {
 exports.refresh = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) return res.status(401).json({ error: "No refresh token found" });
+    console.log(`\n🔄 [Auth] Refresh attempt. Cookies:`, req.cookies);
+
+    if (!refreshToken) {
+      console.log(`[Auth] No refresh token found in cookies`);
+      return res.status(401).json({ error: "No refresh token found" });
+    }
 
     // Verify
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    console.log(`[Auth] Valid refresh token for user ID: ${decoded.id}`);
+    
     const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      console.log(`[Auth] User not found for ID: ${decoded.id}`);
+      return res.status(404).json({ error: "User not found" });
+    }
 
     // New Access Token
     const accessToken = generateAccessToken(user);

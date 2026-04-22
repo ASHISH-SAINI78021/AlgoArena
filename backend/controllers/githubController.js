@@ -162,7 +162,7 @@ exports.pushCode = async (req, res) => {
 
     // 3. Create or Update File
     const payload = {
-      message: message || `Update ${fileName} from AlgoArena`,
+      message: message || `Update ${fileName} from GhostCode`,
       content: Buffer.from(content).toString('base64'),
       branch,
     };

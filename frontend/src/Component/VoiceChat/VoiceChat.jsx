@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Peer from 'peerjs';
 import { Mic, MicOff, Phone, PhoneOff, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -9,6 +10,11 @@ const VoiceChat = ({ roomId, username, socket }) => {
     const [peers, setPeers] = useState({}); // { peerId: { stream, username } }
     const [localStream, setLocalStream] = useState(null);
     const [incomingCall, setIncomingCall] = useState(null); // { username, peerId }
+    const [portalNode, setPortalNode] = useState(null);
+
+    useEffect(() => {
+        setPortalNode(document.getElementById('voice-chat-portal'));
+    }, []);
 
     const ringtoneRef = useRef(null);
     const peerRef = useRef(null);
@@ -244,84 +250,77 @@ const VoiceChat = ({ roomId, username, socket }) => {
     }, [socket, isJoined, username, incomingCall]);
 
     return (
-        <div style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 999,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            alignItems: 'flex-end'
-        }}>
+        <>
             {/* Peer Audio Elements (Hidden) */}
             {Object.entries(peers).map(([id, peerData]) => (
                 <AudioElement key={id} stream={peerData.stream} />
             ))}
 
-            {/* Voice Control Panel */}
-            <div style={{
-                background: '#1e293b',
-                padding: '10px 15px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                transition: 'all 0.3s ease'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isJoined ? '#38bdf8' : '#64748b' }}>
-                    <Users size={16} />
-                    <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{Object.keys(peers).length + (isJoined ? 1 : 0)} in Voice</span>
-                </div>
+            {/* Voice Control Panel Portaled to Navbar */}
+            {portalNode && createPortal(
+                <div style={{
+                    background: '#1e293b',
+                    padding: '10px 15px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isJoined ? '#38bdf8' : '#64748b' }}>
+                        <Users size={16} />
+                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{Object.keys(peers).length + (isJoined ? 1 : 0)} in Voice</span>
+                    </div>
 
-                <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
 
-                {isJoined && (
+                    {isJoined && (
+                        <button
+                            onClick={toggleMute}
+                            style={{
+                                background: isMuted ? '#ef4444' : '#334155',
+                                border: 'none',
+                                color: '#fff',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                        </button>
+                    )}
+
                     <button
-                        onClick={toggleMute}
+                        onClick={toggleVoice}
                         style={{
-                            background: isMuted ? '#ef4444' : '#334155',
+                            background: isJoined ? '#ef4444' : '#10b981',
                             border: 'none',
                             color: '#fff',
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '18px',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                            fontWeight: '600',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: isJoined ? '0 4px 12px rgba(239, 68, 68, 0.2)' : '0 4px 12px rgba(16, 185, 129, 0.2)'
                         }}
-                        title={isMuted ? "Unmute" : "Mute"}
                     >
-                        {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                        {isJoined ? <PhoneOff size={18} /> : <Phone size={18} />}
+                        {isJoined ? 'Leave Voice' : 'Join Voice'}
                     </button>
-                )}
-
-                <button
-                    onClick={toggleVoice}
-                    style={{
-                        background: isJoined ? '#ef4444' : '#10b981',
-                        border: 'none',
-                        color: '#fff',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        boxShadow: isJoined ? '0 4px 12px rgba(239, 68, 68, 0.2)' : '0 4px 12px rgba(16, 185, 129, 0.2)'
-                    }}
-                >
-                    {isJoined ? <PhoneOff size={18} /> : <Phone size={18} />}
-                    {isJoined ? 'Leave Voice' : 'Join Voice'}
-                </button>
-            </div>
+                </div>
+                , portalNode)}
 
             {/* Incoming Call Modal */}
             {incomingCall && (
@@ -405,7 +404,7 @@ const VoiceChat = ({ roomId, username, socket }) => {
                     }
                 `}
             </style>
-        </div>
+        </>
     );
 };
 
