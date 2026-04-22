@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { X, Download, Camera } from 'lucide-react';
+import { X, Download, Camera, Ghost } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -16,107 +17,123 @@ const ExportModal = ({ isOpen, onClose, code, language, username, problemTitle }
     const handleExport = async () => {
         if (!captureRef.current) return;
         setIsExporting(true);
-        toast.loading("Generating your beautiful solution card...", { id: "export" });
+        const tid = toast.loading("Generating your beautiful solution card...");
         try {
-            // Small timeout to allow DOM to fully render fonts & syntax highlight
-            await new Promise(r => setTimeout(r, 100));
-
+            await new Promise(r => setTimeout(r, 150));
             const canvas = await html2canvas(captureRef.current, {
-                scale: 2, // High resolution
-                backgroundColor: null, // Keep transparency if any
-                useCORS: true
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true,
+                logging: false,
+                allowTaint: true
             });
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
-            link.download = `GhostCode_Solution_${problemTitle ? problemTitle.replace(/[^a-zA-Z0-9]/g, '_') : 'Arena'}.png`;
+            link.download = `GhostCode_${problemTitle?.replace(/\s+/g, '_') || 'Solution'}.png`;
             link.href = dataUrl;
             link.click();
-            toast.success("Solution card downloaded!", { id: "export", icon: '🚀' });
+            toast.success("Solution card downloaded!", { id: tid });
             onClose();
         } catch (err) {
             console.error(err);
-            toast.error("Failed to generate image", { id: "export" });
+            toast.error("Failed to generate image", { id: tid });
         } finally {
             setIsExporting(false);
         }
     };
 
-    return (
+    const modalContent = (
         <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            background: 'rgba(10, 10, 18, 0.85)', backdropFilter: 'blur(10px)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            zIndex: 9999
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(5, 5, 10, 0.9)', backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 999999, padding: '20px'
         }}>
             <div style={{
-                background: theme.card, padding: '20px', borderRadius: '16px',
-                border: `1px solid ${theme.border}`, width: '85%', maxWidth: '1000px',
+                background: '#11111a', padding: '24px', borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.1)', width: '100%', maxWidth: '1000px',
                 display: 'flex', flexDirection: 'column', gap: '20px',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-                maxHeight: '90vh' // keep it inside viewport
+                boxShadow: '0 30px 100px rgba(0,0,0,0.8)',
+                maxHeight: '94vh', position: 'relative'
             }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: '#fff' }}>
-                        <Camera size={24} color="#a855f7" /> Generate Solution Card
-                    </h2>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                        <X size={24} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: '8px', borderRadius: '10px' }}>
+                            <Camera size={20} color="#a855f7" />
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>Generate Solution Card</h2>
+                    </div>
+                    <button onClick={onClose} style={{
+                        background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94a3b8',
+                        cursor: 'pointer', padding: '8px', borderRadius: '50%', transition: 'all 0.2s'
+                    }}
+                        onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.2)'}
+                        onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    >
+                        <X size={20} />
                     </button>
                 </div>
 
                 {/* Preview Area Scroll Wrapper */}
-                <div style={{ overflow: 'auto', background: '#0f172a', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '40px' }}>
+                <div style={{
+                    overflowY: 'auto', overflowX: 'auto', background: '#05050a', borderRadius: '14px',
+                    display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '50px 30px',
+                    flex: 1, border: '1px solid rgba(255,255,255,0.05)'
+                }}>
 
                     {/* THE CAPTURE COMPONENT */}
                     <div ref={captureRef} style={{
-                        background: 'linear-gradient(135deg, #1e1e2f 0%, #0f0f1b 100%)', // Standard dark background
+                        background: 'linear-gradient(135deg, #1e1e2f 0%, #0f0f1b 100%)',
                         padding: '40px',
-                        borderRadius: '16px',
+                        borderRadius: '24px',
                         display: 'inline-block',
                         minWidth: '700px',
-                        maxWidth: '100%', // Prevent it from stretching infinitely
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        maxWidth: '90%',
+                        boxShadow: '0 40px 80px rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
                         fontFamily: "'Inter', sans-serif"
                     }}>
 
-                        {/* Gradient Glow */}
+                        {/* Top Gradient Accent */}
                         <div style={{
-                            background: 'linear-gradient(to right, #8b5cf6, #3b82f6)',
-                            height: '4px',
+                            background: 'linear-gradient(to right, #8b5cf6, #ec4899, #3b82f6)',
+                            height: '5px',
                             width: '100%',
-                            borderRadius: '2px',
-                            marginBottom: '25px',
-                            boxShadow: '0 0 10px rgba(139, 92, 246, 0.5)'
+                            borderRadius: '10px',
+                            marginBottom: '30px',
+                            boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)'
                         }}></div>
 
-                        {/* macOS Window */}
+                        {/* Window Frame */}
                         <div style={{
                             background: '#1e1e1e',
-                            borderRadius: '12px',
+                            borderRadius: '16px',
                             overflow: 'hidden',
-                            boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+                            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
                             border: '1px solid rgba(255,255,255,0.1)'
                         }}>
-                            {/* macOS Header */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: '#252526', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ff5f56' }}></div>
-                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#ffbd2e' }}></div>
-                                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#27c93f' }}></div>
+                            {/* Window Top Bar (Mac Style) */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', padding: '14px 20px',
+                                background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)'
+                            }}>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <div style={{ width: '13px', height: '13px', borderRadius: '50%', background: '#ff5f56', boxShadow: '0 0 8px rgba(255,95,86,0.4)' }}></div>
+                                    <div style={{ width: '13px', height: '13px', borderRadius: '50%', background: '#ffbd2e', boxShadow: '0 0 8px rgba(255,189,46,0.4)' }}></div>
+                                    <div style={{ width: '13px', height: '13px', borderRadius: '50%', background: '#27c93f', boxShadow: '0 0 8px rgba(39,201,63,0.4)' }}></div>
                                 </div>
-                                <div style={{ flex: 1, textAlign: 'center', color: '#858585', fontSize: '13px', fontFamily: 'monospace' }}>
+                                <div style={{ flex: 1, textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: '500', fontFamily: "'Fira Code', monospace", opacity: 0.8 }}>
                                     {problemTitle ? `${problemTitle.replace(/\s+/g, '')}.${language === 'python' ? 'py' : language === 'javascript' ? 'js' : language === 'java' ? 'java' : 'cpp'}` : `solution.${language === 'python' ? 'py' : language === 'javascript' ? 'js' : language === 'java' ? 'java' : 'cpp'}`}
                                 </div>
                             </div>
 
-                            {/* Code Content */}
-                            <div style={{ padding: '0px', maxHeight: 'none', overflow: 'hidden' }}>
+                            {/* Code Area */}
+                            <div style={{ padding: '0px' }}>
                                 <SyntaxHighlighter
                                     language={language === 'c++' || language === 'cpp' ? 'cpp' : language}
                                     style={vscDarkPlus}
-                                    customStyle={{ margin: 0, padding: '25px', background: 'transparent', fontSize: '15px', lineHeight: '1.5', fontFamily: "'Fira Code', 'Consolas', monospace" }}
+                                    customStyle={{ margin: 0, padding: '30px', background: 'transparent', fontSize: '15px', lineHeight: '1.6', fontFamily: "'Fira Code', 'JetBrains Mono', monospace" }}
                                     showLineNumbers={true}
                                     wrapLines={true}
                                 >
@@ -130,54 +147,63 @@ const ExportModal = ({ isOpen, onClose, code, language, username, problemTitle }
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            marginTop: '35px',
+                            marginTop: '40px',
                             padding: '0 10px'
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                 <div style={{
-                                    background: 'linear-gradient(135deg, #a855f7 0%, #3b82f6 100%)',
-                                    borderRadius: '10px', padding: '10px'
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+                                    borderRadius: '12px', padding: '10px'
                                 }}>
-                                    <Camera size={22} color="#fff" />
+                                    <Ghost size={24} color="#fff" />
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ color: '#fff', fontWeight: '800', fontSize: '18px', letterSpacing: '1px' }}>GhostCode</span>
-                                    <span style={{ color: '#94a3b8', fontSize: '12px', letterSpacing: '0.5px' }}>{problemTitle || 'Realtime Arena'}</span>
+                                    <span style={{ color: '#fff', fontWeight: '800', fontSize: '20px', letterSpacing: '0.5px' }}>GhostCode</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', fontWeight: '500' }}>{problemTitle || 'Arena Master'}</span>
                                 </div>
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                <span style={{ color: '#f8fafc', fontSize: '16px', fontWeight: '600' }}>Solved by @{username || 'Developer'}</span>
-                                <span style={{ color: '#64748b', fontSize: '12px' }}>Created with love on GhostCode</span>
+                                <span style={{ color: '#fff', fontSize: '16px', fontWeight: '600' }}>@{username || 'Soldier'}</span>
+                                <span style={{ color: 'rgba(139, 92, 246, 0.6)', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>LeetCode Style Card</span>
                             </div>
                         </div>
 
                     </div>
                 </div>
 
-                {/* Action button */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
+                {/* Actions */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', paddingTop: '10px' }}>
                     <button onClick={onClose} style={{
-                        padding: '10px 20px', borderRadius: '8px',
-                        background: 'transparent', color: '#e2e8f0',
-                        border: `1px solid rgba(255,255,255,0.2)`, cursor: 'pointer', fontWeight: '600'
-                    }}>
-                        Cancel
+                        padding: '12px 24px', borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.05)', color: '#fff',
+                        border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', fontWeight: '600',
+                        transition: 'all 0.2s'
+                    }}
+                        onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                    >
+                        Keep Editing
                     </button>
                     <button onClick={handleExport} disabled={isExporting} style={{
-                        padding: '10px 20px', borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)', color: '#fff',
-                        border: 'none', cursor: isExporting ? 'not-allowed' : 'pointer', fontWeight: 'bold',
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
-                    }}>
-                        <Download size={18} /> {isExporting ? 'Generating...' : 'Download Image'}
+                        padding: '12px 28px', borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: '#fff',
+                        border: 'none', cursor: isExporting ? 'not-allowed' : 'pointer', fontWeight: '700',
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        boxShadow: '0 10px 25px rgba(139, 92, 246, 0.4)',
+                        transition: 'all 0.2s'
+                    }}
+                        onMouseEnter={(e) => { !isExporting && (e.target.style.transform = 'translateY(-2px)'); !isExporting && (e.target.style.boxShadow = '0 15px 35px rgba(139, 92, 246, 0.6)') }}
+                        onMouseLeave={(e) => { !isExporting && (e.target.style.transform = 'translateY(0)'); !isExporting && (e.target.style.boxShadow = '0 10px 25px rgba(139, 92, 246, 0.4)') }}
+                    >
+                        {isExporting ? 'Generating...' : <><Download size={20} /> Download Image</>}
                     </button>
                 </div>
-
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default ExportModal;

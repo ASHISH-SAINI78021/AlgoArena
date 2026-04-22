@@ -68,19 +68,21 @@ export default function Navbar() {
             {/* Right actions */}
             <div className={styles.right}>
                 <div id="voice-chat-portal" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}></div>
+
+                {!isArena && (
+                    <>
+                        <button className={styles.pill} onClick={() => navigate('/realtime-coding')}>
+                            Open Arena <ArrowRight size={12} />
+                        </button>
+                        <button className={styles.duelBtn} onClick={() => navigate('/duel')} title="1v1 Duel Arena">
+                            <Swords size={14} /> Duel
+                        </button>
+                    </>
+                )}
+
                 {user ? (
                     <>
                         <span className={styles.greet}>Hi, {user.username}</span>
-                        {!isArena && (
-                            <>
-                                <button className={styles.pill} onClick={() => navigate('/realtime-coding')}>
-                                    Open Arena <ArrowRight size={12} />
-                                </button>
-                                <button className={styles.duelBtn} onClick={() => navigate('/duel')} title="1v1 Duel Arena">
-                                    <Swords size={14} /> Duel
-                                </button>
-                            </>
-                        )}
                         <button className={styles.ghost} onClick={logout}>Logout</button>
                     </>
                 ) : (

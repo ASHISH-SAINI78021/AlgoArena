@@ -1042,12 +1042,26 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           </button>
 
           {!disableAI && (
-            <button onClick={() => setIsAIModalOpen(true)} style={{ background: '#8b5cf6', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)', whiteSpace: 'nowrap' }}>
+            <button onClick={() => {
+              if (!user) {
+                const redirectPath = encodeURIComponent(window.location.pathname + window.location.search);
+                toast("Please login to use AI features", { icon: '🔐' });
+                navigate(`/login?redirect=${redirectPath}`);
+                return;
+              }
+              setIsAIModalOpen(true);
+            }} style={{ background: '#8b5cf6', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)', whiteSpace: 'nowrap' }}>
               <Sparkles size={14} /> AI
             </button>
           )}
 
           <button onClick={() => {
+            if (!user) {
+              const redirectPath = encodeURIComponent(window.location.pathname + window.location.search);
+              toast("Please login to use GitHub features", { icon: '🔐' });
+              navigate(`/login?redirect=${redirectPath}`);
+              return;
+            }
             if (!isGithubConnected) handleConnectGithub();
             else setIsGithubModalOpen(true);
           }} style={{ background: '#24292e', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', whiteSpace: 'nowrap' }}>
@@ -1057,6 +1071,12 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           {!disableAI && (
             <button
               onClick={() => {
+                if (!user) {
+                  const redirectPath = encodeURIComponent(window.location.pathname + window.location.search);
+                  toast("Please login to summon the Ghost", { icon: '👻' });
+                  navigate(`/login?redirect=${redirectPath}`);
+                  return;
+                }
                 const ghostMap = yDoc.getMap('ghostState');
                 const currentActive = ghostMap.get('active');
                 ghostMap.set('active', !currentActive);

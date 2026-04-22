@@ -3,9 +3,13 @@ import axios from '../../axios/axiosInstance';
 import { Sparkles, Send, Bot, User, Lightbulb, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const AIChat = ({ currentProblem, currentCode, language, onInsertCode }) => {
     const { theme } = useTheme();
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [messages, setMessages] = useState([
         { role: 'assistant', content: "Hi! I'm your AI Mentor. I can help you with this problem. Ask me for a hint or to explain your code!" }
     ]);
@@ -138,65 +142,99 @@ const AIChat = ({ currentProblem, currentCode, language, onInsertCode }) => {
             </div>
 
             <div style={{ padding: '15px', borderTop: `1px solid ${theme.border}`, background: theme.sidebar, backdropFilter: `blur(${theme.blur})` }}>
-                <button
-                    onClick={(e) => handleSendMessage(e, 'hint')}
-                    disabled={isLoading || !currentProblem}
-                    style={{
-                        width: '100%',
-                        marginBottom: '10px',
-                        background: theme.card,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.text,
+                {!user ? (
+                    <div style={{
+                        textAlign: 'center',
                         padding: '10px',
+                        background: 'rgba(139, 92, 246, 0.1)',
                         borderRadius: '10px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s'
-                    }}
-                >
-                    <Lightbulb size={14} color="#facc15" /> Analyze direction & Get hint
-                </button>
-                <form onSubmit={(e) => handleSendMessage(e, 'general')} style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        placeholder="Ask AI Mentor..."
-                        style={{
-                            flex: 1,
-                            background: 'rgba(0,0,0,0.2)',
-                            border: `1px solid ${theme.border}`,
-                            borderRadius: '10px',
-                            padding: '10px 14px',
-                            color: '#fff',
-                            fontSize: '13px',
-                            outline: 'none'
-                        }}
-                    />
-                    <button
-                        type="submit"
-                        disabled={isLoading || !input.trim()}
-                        style={{
-                            background: '#8b5cf6',
-                            border: 'none',
-                            color: '#fff',
-                            width: '35px',
-                            height: '35px',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            opacity: (isLoading || !input.trim()) ? 0.5 : 1
-                        }}
-                    >
-                        <Send size={18} />
-                    </button>
-                </form>
+                        border: '1px dashed rgba(139, 92, 246, 0.3)'
+                    }}>
+                        <p style={{ color: theme.text, fontSize: '12px', margin: '0 0 10px 0' }}>
+                            Login to chat with AI Mentor
+                        </p>
+                        <button
+                            onClick={() => {
+                                const redirectPath = encodeURIComponent(window.location.pathname + window.location.search);
+                                navigate(`/login?redirect=${redirectPath}`);
+                            }}
+                            style={{
+                                background: '#8b5cf6',
+                                border: 'none',
+                                color: '#fff',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Sign In
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <button
+                            onClick={(e) => handleSendMessage(e, 'hint')}
+                            disabled={isLoading || !currentProblem}
+                            style={{
+                                width: '100%',
+                                marginBottom: '10px',
+                                background: theme.card,
+                                border: `1px solid ${theme.border}`,
+                                color: theme.text,
+                                padding: '10px',
+                                borderRadius: '10px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <Lightbulb size={14} color="#facc15" /> Analyze direction & Get hint
+                        </button>
+                        <form onSubmit={(e) => handleSendMessage(e, 'general')} style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Ask AI Mentor..."
+                                style={{
+                                    flex: 1,
+                                    background: 'rgba(0,0,0,0.2)',
+                                    border: `1px solid ${theme.border}`,
+                                    borderRadius: '10px',
+                                    padding: '10px 14px',
+                                    color: '#fff',
+                                    fontSize: '13px',
+                                    outline: 'none'
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                disabled={isLoading || !input.trim()}
+                                style={{
+                                    background: '#8b5cf6',
+                                    border: 'none',
+                                    color: '#fff',
+                                    width: '35px',
+                                    height: '35px',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    opacity: (isLoading || !input.trim()) ? 0.5 : 1
+                                }}
+                            >
+                                <Send size={18} />
+                            </button>
+                        </form>
+                    </>
+                )}
             </div>
         </div>
     );

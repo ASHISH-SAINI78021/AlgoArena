@@ -354,8 +354,11 @@ export default function Home() {
           ) : (
             <>
               <button className={styles.navBtn} onClick={() => navigate('/login')}>Login</button>
-              <button className={styles.navPrimary} onClick={() => navigate('/signup')}>
-                Start Free <ArrowRight size={14} />
+              <button className={styles.navBtn} onClick={() => navigate('/duel')} style={{ color: '#ef4444' }}>
+                <Swords size={14} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'text-bottom' }} /> Duel
+              </button>
+              <button className={styles.navPrimary} onClick={() => navigate('/realtime-coding')}>
+                Open Arena <ArrowRight size={14} />
               </button>
             </>
           )}
@@ -384,7 +387,7 @@ export default function Home() {
           <button
             ref={magBtn1}
             className={styles.primaryBtn}
-            onClick={() => navigate(user ? '/realtime-coding' : '/signup')}
+            onClick={() => navigate('/realtime-coding')}
           >
             <Play size={16} />
             Enter the Arena
@@ -463,7 +466,7 @@ export default function Home() {
             <div className={styles.ctaBtns}>
               <button
                 className={styles.primaryBtn}
-                onClick={() => navigate(user ? '/realtime-coding' : '/signup')}
+                onClick={() => navigate('/realtime-coding')}
               >
                 {user ? 'Keep Practicing' : 'Get Started Free'}
                 <ChevronRight size={16} />
