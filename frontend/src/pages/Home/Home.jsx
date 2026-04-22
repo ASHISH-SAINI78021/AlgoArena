@@ -314,7 +314,6 @@ export default function Home() {
 
   return (
     <div className={styles.root}>
-      <ParticleCanvas />
 
       {/* animated mesh gradient spheres */}
       <div className={styles.sphere1} />

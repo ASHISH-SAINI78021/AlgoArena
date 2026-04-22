@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 function SplashCursor({
   SIM_RESOLUTION = 128,
@@ -65,7 +66,100 @@ function SplashCursor({
     let pointers = [new pointerPrototype()];
 
     const webGLContext = getWebGLContext(canvas);
-    if (!webGLContext) return;
+    if (!webGLContext) {
+      console.warn('SplashCursor: WebGL unavailable, using 2D canvas fallback.');
+
+      // ── 2D Canvas Fallback ──────────────────────────────────────
+      const ctx2d = canvas.getContext('2d');
+      if (!ctx2d) return;
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      let mouse2d = { x: canvas.width / 2, y: canvas.height / 2 };
+      let trail2d = { x: mouse2d.x, y: mouse2d.y };
+      let particles2d = [];
+
+      class P2D {
+        constructor(x, y) {
+          this.x = x; this.y = y;
+          this.vx = (Math.random() - 0.5) * 4;
+          this.vy = (Math.random() - 0.5) * 4;
+          this.life = 1;
+          this.decay = Math.random() * 0.018 + 0.012;
+          this.size = Math.random() * 14 + 5;
+          const hues = ['139,92,246', '236,72,153', '34,211,238', '167,139,250'];
+          this.color = hues[Math.floor(Math.random() * hues.length)];
+        }
+        update() {
+          this.x += this.vx; this.y += this.vy;
+          this.vx *= 0.95; this.vy *= 0.95;
+          this.life -= this.decay; this.size *= 0.97;
+        }
+        draw() {
+          if (this.life <= 0) return;
+          ctx2d.save();
+          ctx2d.globalAlpha = this.life * 0.65;
+          const g = ctx2d.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+          g.addColorStop(0, `rgba(${this.color},${this.life})`);
+          g.addColorStop(1, `rgba(${this.color},0)`);
+          ctx2d.fillStyle = g;
+          ctx2d.beginPath();
+          ctx2d.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx2d.fill();
+          ctx2d.restore();
+        }
+      }
+
+      const resize2d = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      };
+      const onMove2d = (e) => {
+        mouse2d.x = e.clientX; mouse2d.y = e.clientY;
+        for (let i = 0; i < 4; i++) particles2d.push(new P2D(e.clientX, e.clientY));
+      };
+
+      let anim2d;
+      const loop2d = () => {
+        ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+        trail2d.x += (mouse2d.x - trail2d.x) * 0.15;
+        trail2d.y += (mouse2d.y - trail2d.y) * 0.15;
+        if (particles2d.length < 250) {
+          for (let i = 0; i < 2; i++) particles2d.push(new P2D(
+            trail2d.x + (Math.random() - 0.5) * 16,
+            trail2d.y + (Math.random() - 0.5) * 16
+          ));
+        }
+        particles2d = particles2d.filter(p => p.life > 0);
+        particles2d.forEach(p => { p.update(); p.draw(); });
+        // glow dot at cursor
+        ctx2d.save();
+        ctx2d.globalAlpha = 0.85;
+        const dot = ctx2d.createRadialGradient(trail2d.x, trail2d.y, 0, trail2d.x, trail2d.y, 20);
+        dot.addColorStop(0, 'rgba(139,92,246,0.9)');
+        dot.addColorStop(0.5, 'rgba(139,92,246,0.3)');
+        dot.addColorStop(1, 'rgba(139,92,246,0)');
+        ctx2d.fillStyle = dot;
+        ctx2d.beginPath();
+        ctx2d.arc(trail2d.x, trail2d.y, 20, 0, Math.PI * 2);
+        ctx2d.fill();
+        ctx2d.restore();
+        anim2d = requestAnimationFrame(loop2d);
+      };
+
+      window.addEventListener('mousemove', onMove2d);
+      window.addEventListener('resize', resize2d);
+      loop2d();
+
+      return () => {
+        cancelAnimationFrame(anim2d);
+        window.removeEventListener('mousemove', onMove2d);
+        window.removeEventListener('resize', resize2d);
+      };
+      // ── end 2D fallback ───────────────────────────────────────
+    }
+    console.log('SplashCursor: WebGL context created successfully.');
     const { gl, ext } = webGLContext;
 
     if (!ext.supportLinearFiltering) {
@@ -79,11 +173,18 @@ function SplashCursor({
         depth: false,
         stencil: false,
         antialias: false,
-        preserveDrawingBuffer: false
+        preserveDrawingBuffer: false,
+        powerPreference: 'low-power',
+        failIfMajorPerformanceCaveat: false
       };
-      let gl = canvas.getContext('webgl2', params);
-      const isWebGL2 = !!gl;
-      if (!isWebGL2) gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+
+      // Try WebGL1 first — more compatible with Windows ANGLE driver
+      let gl = canvas.getContext('webgl', params) || canvas.getContext('experimental-webgl', params);
+      const isWebGL2 = false;
+      if (!gl) {
+        // Fallback to WebGL2
+        gl = canvas.getContext('webgl2', params);
+      }
 
       if (!gl) return null;
 
@@ -1063,29 +1164,31 @@ function SplashCursor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
+  const content = (
     <div
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
-        zIndex: 50,
+        zIndex: 2147483647,
         pointerEvents: 'none',
-        width: '100%',
-        height: '100%'
+        width: '100vw',
+        height: '100vh'
       }}
     >
       <canvas
         ref={canvasRef}
         id="fluid"
         style={{
-          width: '100vw',
-          height: '100vh',
+          width: '100%',
+          height: '100%',
           display: 'block'
         }}
       />
     </div>
   );
+
+  return createPortal(content, document.body);
 }
 
 export default SplashCursor;

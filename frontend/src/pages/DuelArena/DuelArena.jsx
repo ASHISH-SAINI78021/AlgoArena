@@ -10,37 +10,7 @@ import CodeEditor from '../../Component/CodeEditor/CodeEditor';
 import Chat from '../../Component/Chat/Chat';
 import styles from './DuelArena.module.css';
 
-/* ── Particle Canvas ── */
-function ParticleCanvas() {
-    const canvasRef = useRef(null);
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        let W, H, particles = [];
-        const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
-        resize();
-        window.addEventListener('resize', resize);
-        class Particle {
-            constructor() { this.reset(true); }
-            reset(init = false) {
-                this.x = Math.random() * W; this.y = init ? Math.random() * H : H + 10;
-                this.vy = -(Math.random() * 0.4 + 0.1); this.vx = (Math.random() - 0.5) * 0.2;
-                this.r = Math.random() * 1.5 + 0.3;
-                const hue = Math.random() > 0.5 ? 0 + Math.random() * 20 : 30 + Math.random() * 20; // Red/Orange for battle
-                this.color = `hsla(${hue},90%,65%,${Math.random() * 0.5 + 0.15})`;
-            }
-            update() { this.x += this.vx; this.y += this.vy; if (this.y < -10) this.reset(); }
-            draw() { ctx.save(); ctx.globalAlpha = (this.y / H) * 0.7; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.shadowBlur = 8; ctx.shadowColor = this.color; ctx.fill(); ctx.restore(); }
-        }
-        for (let i = 0; i < 100; i++) particles.push(new Particle());
-        let anim;
-        const draw = () => { ctx.clearRect(0, 0, W, H); particles.forEach(p => { p.update(); p.draw(); }); anim = requestAnimationFrame(draw); };
-        draw();
-        return () => { cancelAnimationFrame(anim); window.removeEventListener('resize', resize); };
-    }, []);
-    return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, zIndex: 0, pointerEvents: 'none' }} />;
-}
+/* ── Duel Content ── */
 
 /* ── Health Bar ── */
 const HealthBar = ({ hp, maxHp, name, color, right = false }) => {
@@ -406,7 +376,6 @@ export default function DuelArena() {
     if (phase === 'lobby') {
         return (
             <div className={styles.root}>
-                <ParticleCanvas />
                 <Toaster position="top-center" />
                 <div className={styles.lobbyContainer}>
                     <div className={styles.lobbyCard}>
@@ -468,7 +437,6 @@ export default function DuelArena() {
     if (phase === 'waiting') {
         return (
             <div className={styles.root}>
-                <ParticleCanvas />
                 <Toaster position="top-center" />
                 <div className={styles.lobbyContainer}>
                     <div className={styles.lobbyCard} style={{ textAlign: 'center' }}>
@@ -522,7 +490,6 @@ export default function DuelArena() {
         const isDraw = result === 'draw';
         return (
             <div className={styles.root}>
-                <ParticleCanvas />
                 <Toaster position="top-center" />
                 <div className={styles.lobbyContainer}>
                     <div className={styles.lobbyCard} style={{ textAlign: 'center' }}>
@@ -592,7 +559,6 @@ export default function DuelArena() {
     // ── BATTLE SCREEN ──
     return (
         <div className={styles.root} style={{ flexDirection: 'column' }}>
-            <ParticleCanvas />
             <Toaster position="top-center" />
 
             {/* Battle Header */}

@@ -33,13 +33,14 @@ function App() {
     <ThemeProvider>
       <SplashCursor
         COLOR="#8b5cf6"
-        SPLAT_RADIUS={0.2}
-        SPLAT_FORCE={3000}
-        DENSITY_DISSIPATION={4.0}
-        VELOCITY_DISSIPATION={2.5}
+        SPLAT_RADIUS={0.25}
+        SPLAT_FORCE={4000}
+        DENSITY_DISSIPATION={3.5}
+        VELOCITY_DISSIPATION={2}
         SIM_RESOLUTION={64}
-        DYE_RESOLUTION={512}
+        DYE_RESOLUTION={256}
         PRESSURE_ITERATIONS={10}
+        TRANSPARENT={true}
       />
       <BrowserRouter>
         <AuthProvider>
