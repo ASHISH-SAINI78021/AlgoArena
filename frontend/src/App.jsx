@@ -7,6 +7,7 @@ import Signup from './pages/Auth/Signup';
 import SavedCodes from './pages/SavedCodes/SavedCodes';
 import GithubCallback from './pages/Auth/GithubCallback';
 import DuelArena from './pages/DuelArena/DuelArena';
+import Problems from './pages/Problems/Problems';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -47,6 +48,7 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/problems" element={<Problems />} />
               <Route path="/realtime-coding" element={<CodingRealtime />} />
               <Route path="/saved-codes" element={
                 <ProtectedRoute>

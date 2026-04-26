@@ -16,7 +16,7 @@ import { useSound } from '../../hooks/useSound';
 const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingComplexity, stdin, yDoc, provider, currentProblem, onRunComplete, disableAI }) => {
   const navigate = useNavigate();
   const { theme, themeName, setThemeName } = useTheme();
-  const { playCompileSuccess, playCompileError, playGhostWhisper, isSoundEnabled, toggleSound } = useSound();
+  const { playCompileSuccess, playCompileError, playGhostWhisper, playTestCorrect, playTestWrong, isSoundEnabled, toggleSound } = useSound();
   console.log("Current API Base URL:", import.meta.env.VITE_API_BASE_URL);
   const [editorInstance, setEditorInstance] = useState(null);
   const [monacoInstance, setMonacoInstance] = useState(null);
@@ -26,6 +26,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
   const currentProblemRef = useRef(null);
   const [language, setLanguage] = useState('cpp');
   const [stdinInput, setStdinInput] = useState(stdin || '');
+  const [isExecuting, setIsExecuting] = useState(false);
 
   // Sync stdin when the prop changes (e.g. new duel problem loaded)
   useEffect(() => {
@@ -172,13 +173,13 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     const disposable = editorInstance.onDidChangeModelContent(() => {
       const val = editorInstance.getValue();
       const probId = currentProblemRef.current?._id || currentProblemRef.current?.title;
-      if (probId && roomId && !yDoc) {
+      if (probId && roomId) {
         localStorage.setItem(`duel_persist_code_${roomId}`, val);
         localStorage.setItem(`duel_persist_prob_${roomId}`, String(probId));
       }
     });
     return () => disposable.dispose();
-  }, [editorInstance, roomId, yDoc]);
+  }, [editorInstance, roomId]);
 
   useEffect(() => {
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
@@ -343,17 +344,34 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
               sharedData.set('language', savedLang);
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             } else {
-              // No saved code — use problem boilerplate if a problem is selected, else default
+              // No saved code from DB — prioritize Local Storage first, then boilerplate
               const currentLang = sharedLang || 'cpp';
               setLanguage(currentLang);
               const pendingProblem = currentProblemRef.current;
+
+              let insertedBackup = false;
               if (pendingProblem) {
-                const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
-                type.insert(0, boilerplate);
+                const probId = pendingProblem._id || pendingProblem.title;
+                const localBackupCode = localStorage.getItem(`duel_persist_code_${roomId}`);
+                const localBackupProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
+                if (localBackupCode && localBackupProbId === String(probId)) {
+                  type.insert(0, localBackupCode);
+                  insertedBackup = true;
+                }
+              }
+
+              if (!insertedBackup) {
+                if (pendingProblem) {
+                  const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
+                  type.insert(0, boilerplate);
+                } else {
+                  type.insert(0, templates[currentLang]);
+                }
+              }
+
+              if (pendingProblem) {
                 lastProblemIdRef.current = pendingProblem._id || pendingProblem.title;
                 if (pendingProblem.title) setCurrentFileName(pendingProblem.title);
-              } else {
-                type.insert(0, templates[currentLang]);
               }
               sharedData.set('language', currentLang);
             }
@@ -364,13 +382,30 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
             const currentLang = sharedLang || 'cpp';
             setLanguage(currentLang);
             const pendingProblem = currentProblemRef.current;
+
+            let insertedBackup = false;
             if (pendingProblem) {
-              const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
-              type.insert(0, boilerplate);
+              const probId = pendingProblem._id || pendingProblem.title;
+              const localBackupCode = localStorage.getItem(`duel_persist_code_${roomId}`);
+              const localBackupProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
+              if (localBackupCode && localBackupProbId === String(probId)) {
+                type.insert(0, localBackupCode);
+                insertedBackup = true;
+              }
+            }
+
+            if (!insertedBackup) {
+              if (pendingProblem) {
+                const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
+                type.insert(0, boilerplate);
+              } else {
+                type.insert(0, templates[currentLang]);
+              }
+            }
+
+            if (pendingProblem) {
               lastProblemIdRef.current = pendingProblem._id || pendingProblem.title;
               if (pendingProblem.title) setCurrentFileName(pendingProblem.title);
-            } else {
-              type.insert(0, templates[currentLang]);
             }
           }
         } else {
@@ -597,26 +632,31 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     const problemId = currentProblem._id || currentProblem.title;
     if (problemId && problemId === lastProblemIdRef.current) return;
 
-    // ── RECOVERY LOGIC (Priority 1: Only in Isolated/Standalone Mode) ──
+    // ── RECOVERY LOGIC (Priority 1: Local Backup) ──
     const savedCode = localStorage.getItem(`duel_persist_code_${roomId}`);
     const savedProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
+    const isYjsEmpty = yTextRef.current ? yTextRef.current.length === 0 : false;
 
-    if (savedCode && savedProbId === String(problemId) && !yDoc) {
-      // Small delay to ensure editor is ready for value update
-      editorInstance.setValue(savedCode);
-      lastProblemIdRef.current = problemId;
-      if (currentProblem.title) setCurrentFileName(currentProblem.title);
-      return;
+    let textToInsert = '';
+
+    if (savedCode && savedProbId === String(problemId)) {
+      // If we don't have yDoc OR if yDoc is COMPLETELY empty, it means we are safe to overwrite
+      if (!yDoc || isYjsEmpty) {
+        textToInsert = savedCode;
+      }
     }
 
     // ── BOILERPLATE LOGIC (Priority 2) ──
-    const boilerplate = currentProblem.boilerplates?.['cpp'] || currentProblem.boilerplates?.[language] || templates['cpp'] || templates[language];
+    if (!textToInsert) {
+      textToInsert = currentProblem.boilerplates?.['cpp'] || currentProblem.boilerplates?.[language] || templates['cpp'] || templates[language];
+    }
 
     const model = editorInstance.getModel();
     if (model) {
+      // Execute edit cleanly so Monaco notifies Yjs without causing cursor jump bugs
       editorInstance.executeEdits('problem-change', [{
         range: model.getFullModelRange(),
-        text: boilerplate
+        text: textToInsert
       }]);
     }
 
@@ -715,13 +755,14 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
   };
 
   const runCode = async () => {
-    if (!editorInstance) return;
+    if (!editorInstance || isExecuting) return;
     const sourceCode = editorInstance.getValue();
-    setIsRunning(true);
+    setIsExecuting(true);
+    if (setIsRunning) setIsRunning(true);
     setIsAnalyzingComplexity(false);
     setOutput([]); // Clear output
 
-    // Map language to Piston API format (Our backend translates this to Wandbox)
+    // ... (language mapping and test case extraction) ...
     const languageMap = {
       javascript: 'javascript',
       python: 'python',
@@ -729,38 +770,88 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
       java: 'java'
     };
 
+    let testCaseInput = null;
+    let expectedOutput = null;
+
+    if (currentProblem) {
+      if (currentProblem.sampleTestCases && currentProblem.sampleTestCases.length > 0) {
+        testCaseInput = currentProblem.sampleTestCases[0].input;
+        expectedOutput = currentProblem.sampleTestCases[0].output;
+      } else if (currentProblem.testCases && currentProblem.testCases.length > 0) {
+        testCaseInput = currentProblem.testCases[0].input;
+        expectedOutput = currentProblem.testCases[0].output;
+      }
+    }
+
+    const payloadStdin = (stdinInput && stdinInput.trim()) ? stdinInput : (testCaseInput !== null ? testCaseInput : stdin);
+
     try {
       const response = await axios.post('/code/execute', {
         language: languageMap[language],
         source: sourceCode,
-        stdin: stdinInput,
+        stdin: payloadStdin,
         version: '*'
       });
 
       if (response.data.run) {
         const { stdout, stderr, code } = response.data.run;
         const outputBlocks = [];
-        if (stdout) outputBlocks.push({ type: 'stdout', content: stdout });
-        if (stderr) outputBlocks.push({ type: 'stderr', content: stderr });
-        if (!stdout && !stderr) outputBlocks.push({ type: 'info', content: 'Program executed with no output.' });
+        let wasCorrect = true; // Default to true if no test case to fail
+
+        // Distinguish between hard errors (code !== 0) and warnings (stderr with code === 0)
+        const hasHardError = typeof code !== 'undefined' && code !== 0;
+
+        if (hasHardError) {
+          if (stdout) outputBlocks.push({ type: 'stdout', content: stdout });
+          outputBlocks.push({ type: 'stderr', content: stderr || 'Execution failed with code ' + code });
+          playCompileError();
+          wasCorrect = false;
+        } else {
+          // It ran successfully (code === 0), even if there are warnings in stderr.
+          if (stderr) {
+            outputBlocks.push({ type: 'warning', content: stderr }); // Show warnings if they exist
+          }
+
+          if (expectedOutput !== null) {
+            const actualClean = (stdout || "").trim();
+            const expectedClean = expectedOutput.trim();
+            wasCorrect = (actualClean === expectedClean);
+
+            if (wasCorrect) {
+              playTestCorrect();
+              if (stdout) outputBlocks.push({ type: 'stdout', content: stdout });
+              outputBlocks.push({ type: 'success', content: `\n✅ Passed Test Case!\nExpected: ${expectedOutput}\nYour Output: ${actualClean}` });
+            } else {
+              playTestWrong();
+              outputBlocks.push({ type: 'stderr', content: `\n❌ Failed Test Case.\n\nInput:\n${testCaseInput}\n\nExpected:\n${expectedOutput}\n\nYour Output:\n${stdout || "(no output)"}` });
+            }
+          } else {
+            playCompileSuccess();
+            if (stdout) outputBlocks.push({ type: 'stdout', content: stdout });
+          }
+
+          // Shared "No Output" hint logic
+          if (!stdout && !stderr) {
+            outputBlocks.push({ type: 'info', content: 'Program executed with no output.' });
+            const hint = (stdinInput && stdinInput.trim())
+              ? "No output! Make sure your code is printing results to the console."
+              : "No output! Try writing input in the field just below the console.";
+            toast(hint, { icon: '💡', duration: 4000 });
+          }
+        }
 
         setOutput(outputBlocks);
-
-        if (stderr || (code && code !== 0)) {
-          playCompileError();
-        } else {
-          playCompileSuccess();
-        }
 
         if (onRunComplete) {
           onRunComplete({ stdout, stderr, code, sourceCode });
         }
 
         // Hide initial "Running..." loader
-        setIsRunning(false);
+        setIsExecuting(false);
+        if (setIsRunning) setIsRunning(false);
 
-        // Only analyze complexity if the code ran successfully
-        if (!stderr && (!code || code === 0)) {
+        // Only analyze complexity if the code ran successfully AND (if applicable) the test case passed
+        if (!hasHardError && wasCorrect) {
           // Start "Analyzing Complexity..." loader
           setIsAnalyzingComplexity(true);
 
@@ -783,7 +874,8 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
 
       } else {
         setOutput([{ type: 'stderr', content: "No output returned from server" }]);
-        setIsRunning(false);
+        setIsExecuting(false);
+        if (setIsRunning) setIsRunning(false);
       }
 
     } catch (error) {
@@ -791,7 +883,8 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
       const errorMsg = error.response?.data?.error || error.message;
       setOutput([{ type: 'stderr', content: "Error executing code: " + errorMsg }]);
       playCompileError();
-      setIsRunning(false);
+      setIsExecuting(false);
+      if (setIsRunning) setIsRunning(false);
     }
   };
 
@@ -1110,7 +1203,10 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           )}
 
           <button onClick={handleResetBoilerplate} style={{ background: theme.card, border: `1px solid ${theme.border}`, color: theme.text, padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }} title="Reset boilerplate">Reset</button>
-          <button onClick={runCode} style={{ background: '#22c55e', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer', fontSize: '12px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)', whiteSpace: 'nowrap' }}>Run</button>
+          <button onClick={runCode} disabled={isExecuting} style={{ background: '#22c55e', opacity: isExecuting ? 0.7 : 1, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: isExecuting ? 'not-allowed' : 'pointer', fontSize: '12px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            {isExecuting && <div className="spinner" style={{ width: '10px', height: '10px', border: `2px solid #fff`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />}
+            {isExecuting ? 'Running...' : 'Run'}
+          </button>
         </div>
       </div>
 

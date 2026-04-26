@@ -174,6 +174,16 @@ const CodingRealtime = () => {
 
     // Sync Problem selection via Yjs
     const sharedData = doc.getMap('sharedData');
+
+    const params = new URLSearchParams(window.location.search);
+    const problemParam = params.get('problemSlug');
+
+    wsp.on('synced', (isSynced) => {
+      if (isSynced && problemParam && !sharedData.get('problemSlug')) {
+        sharedData.set('problemSlug', problemParam);
+      }
+    });
+
     const syncProblem = () => {
       const problemSlug = sharedData.get('problemSlug');
       if (problemSlug && (!selectedProblem || selectedProblem.slug !== problemSlug)) {
@@ -211,7 +221,10 @@ const CodingRealtime = () => {
     e.preventDefault();
     if (roomId && username) {
       // Update URL without reload
-      const newUrl = `${window.location.pathname}?roomId=${roomId}&username=${username}`;
+      const params = new URLSearchParams(window.location.search);
+      const problemParam = params.get('problemSlug');
+      let newUrl = `${window.location.pathname}?roomId=${roomId}&username=${username}`;
+      if (problemParam) newUrl += `&problemSlug=${problemParam}`;
       window.history.pushState({}, '', newUrl);
       setJoined(true);
     }

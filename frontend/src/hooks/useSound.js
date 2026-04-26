@@ -35,5 +35,19 @@ export const useSound = () => {
         audio.play().catch(e => console.log('Audio overlap/blocked:', e));
     }, [isSoundEnabled]);
 
-    return { playCompileSuccess, playCompileError, playGhostWhisper, isSoundEnabled, toggleSound };
+    const playTestCorrect = useCallback(() => {
+        if (!isSoundEnabled) return;
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio overlap/blocked:', e));
+    }, [isSoundEnabled]);
+
+    const playTestWrong = useCallback(() => {
+        if (!isSoundEnabled) return;
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); /* professional flat tone instead of buzzer */
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio overlap/blocked:', e));
+    }, [isSoundEnabled]);
+
+    return { playCompileSuccess, playCompileError, playGhostWhisper, playTestCorrect, playTestWrong, isSoundEnabled, toggleSound };
 };

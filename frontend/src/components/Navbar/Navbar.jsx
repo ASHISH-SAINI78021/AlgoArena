@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Ghost, ArrowRight, Code, Zap, ChevronRight, Swords } from 'lucide-react';
+import { Ghost, ArrowRight, Code, Zap, ChevronRight, Swords, Book } from 'lucide-react';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {
@@ -71,6 +71,9 @@ export default function Navbar() {
 
                 {!isArena && (
                     <>
+                        <button className={styles.pill} onClick={() => navigate('/problems')}>
+                            <Book size={14} /> Problems
+                        </button>
                         <button className={styles.pill} onClick={() => navigate('/realtime-coding')}>
                             Open Arena <ArrowRight size={12} />
                         </button>

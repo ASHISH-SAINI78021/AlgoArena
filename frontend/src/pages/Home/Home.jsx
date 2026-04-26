@@ -332,7 +332,7 @@ export default function Home() {
           <span className={styles.logoWord}>GhostCode</span>
         </div>
         <div className={styles.navCenter}>
-          <a href="#" className={styles.navItem}>Problems</a>
+          <a href="/problems" onClick={(e) => { e.preventDefault(); navigate('/problems'); }} className={styles.navItem}>Problems</a>
           <a href="#" className={styles.navItem}>Battles</a>
           <a href="#" className={styles.navItem}>Leaderboard</a>
           <a href="#" className={styles.navItem}>Pricing</a>
@@ -404,7 +404,7 @@ export default function Home() {
           <button
             ref={magBtn3}
             className={styles.ghostBtn}
-            onClick={() => navigate('/realtime-coding')}
+            onClick={() => navigate('/problems')}
           >
             <Code size={16} />
             Browse Problems
@@ -497,7 +497,11 @@ export default function Home() {
             <div key={col.heading}>
               <h4 className={styles.footerHeading}>{col.heading}</h4>
               <ul className={styles.footerList}>
-                {col.links.map(l => <li key={l}><a href="#">{l}</a></li>)}
+                {col.links.map(l => (
+                  <li key={l}>
+                    <a href={l === 'Problems' ? '/problems' : '#'} onClick={(e) => { if (l === 'Problems') { e.preventDefault(); navigate('/problems'); } }}>{l}</a>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
@@ -514,9 +518,9 @@ export default function Home() {
         logo={<Ghost size={24} color="#000" />}
         menuContentColor="#000"
         items={[
+          { label: 'Problems', href: '/problems', hoverStyles: { bgColor: '#10b981', textColor: '#fff' } },
           { label: 'Arena', href: '/realtime-coding', hoverStyles: { bgColor: '#8b5cf6', textColor: '#fff' } },
           { label: 'Duel', href: '/duel', hoverStyles: { bgColor: '#ef4444', textColor: '#fff' } },
-          { label: 'Stats', href: '#', hoverStyles: { bgColor: '#ec4899', textColor: '#fff' } },
           { label: 'Login', href: '/login', hoverStyles: { bgColor: '#22d3ee', textColor: '#fff' } }
         ]}
       />

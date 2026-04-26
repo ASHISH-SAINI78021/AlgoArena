@@ -8,25 +8,46 @@ const ProblemSidebar = ({ onSelectProblem, currentSlug }) => {
     const [problems, setProblems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTag, setSelectedTag] = useState('');
+    const [selectedDifficulty, setSelectedDifficulty] = useState('All Difficulty');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [allTags, setAllTags] = useState([]);
+
+    useEffect(() => {
+        axios.get('/problems/tags/all').then(res => setAllTags(res.data)).catch(console.error);
+    }, []);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedTag, selectedDifficulty]);
 
     useEffect(() => {
         const fetchProblems = async () => {
+            setLoading(true);
             try {
-                const res = await axios.get('/problems');
-                setProblems(res.data);
+                const params = {
+                    page: currentPage,
+                    limit: 10,
+                    search: searchTerm,
+                    difficulty: selectedDifficulty,
+                    tag: selectedTag
+                };
+                const res = await axios.get('/problems', { params });
+                setProblems(res.data.problems);
+                setTotalPages(res.data.totalPages);
             } catch (err) {
                 console.error("Failed to fetch problems", err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchProblems();
-    }, []);
+        const timer = setTimeout(() => fetchProblems(), 300);
+        return () => clearTimeout(timer);
+    }, [currentPage, searchTerm, selectedTag, selectedDifficulty]);
 
-    const filteredProblems = problems.filter(p =>
-        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.tags.some(t => t.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredProblems = problems;
 
     return (
         <div style={{
@@ -42,7 +63,7 @@ const ProblemSidebar = ({ onSelectProblem, currentSlug }) => {
                 <h3 style={{ margin: '0 0 15px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: theme.accent }}>
                     <Book size={20} color={theme.accent} /> Problems
                 </h3>
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', marginBottom: '10px' }}>
                     <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
                     <input
                         type="text"
@@ -60,6 +81,52 @@ const ProblemSidebar = ({ onSelectProblem, currentSlug }) => {
                             outline: 'none'
                         }}
                     />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <select
+                        value={selectedDifficulty}
+                        onChange={(e) => setSelectedDifficulty(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: '8px',
+                            background: 'rgba(0,0,0,0.2)',
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: '6px',
+                            color: theme.text,
+                            fontSize: '12px',
+                            outline: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value="All Difficulty" style={{ background: theme.card, color: theme.text }}>All Difficulty</option>
+                        <option value="Easy" style={{ background: theme.card, color: '#22c55e' }}>Easy</option>
+                        <option value="Medium" style={{ background: theme.card, color: '#eab308' }}>Medium</option>
+                        <option value="Hard" style={{ background: theme.card, color: '#ef4444' }}>Hard</option>
+                    </select>
+
+                    <select
+                        value={selectedTag}
+                        onChange={(e) => setSelectedTag(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: '8px',
+                            background: 'rgba(0,0,0,0.2)',
+                            border: `1px solid ${theme.border}`,
+                            borderRadius: '6px',
+                            color: theme.text,
+                            fontSize: '12px',
+                            outline: 'none',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value="" style={{ background: theme.card, color: theme.text }}>All Tags</option>
+                        {allTags.map(tag => (
+                            <option key={tag} value={tag} style={{ background: theme.card, color: theme.text }}>
+                                {tag}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -112,6 +179,43 @@ const ProblemSidebar = ({ onSelectProblem, currentSlug }) => {
                             </div>
                         </div>
                     ))
+                )}
+
+                {/* Sidebar Pagination */}
+                {!loading && totalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                        <button
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            style={{
+                                padding: '6px 12px',
+                                background: currentPage === 1 ? 'transparent' : theme.card,
+                                color: currentPage === 1 ? '#666' : theme.text,
+                                border: `1px solid ${currentPage === 1 ? 'transparent' : theme.border}`,
+                                borderRadius: '6px',
+                                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                                fontSize: '12px'
+                            }}
+                        >
+                            Prev
+                        </button>
+                        <span style={{ fontSize: '12px', color: '#666' }}>{currentPage}/{totalPages}</span>
+                        <button
+                            disabled={currentPage === totalPages}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            style={{
+                                padding: '6px 12px',
+                                background: currentPage === totalPages ? 'transparent' : theme.card,
+                                color: currentPage === totalPages ? '#666' : theme.text,
+                                border: `1px solid ${currentPage === totalPages ? 'transparent' : theme.border}`,
+                                borderRadius: '6px',
+                                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                                fontSize: '12px'
+                            }}
+                        >
+                            Next
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

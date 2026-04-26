@@ -47,8 +47,11 @@ const OutputConsole = ({ output, isRunning, isAnalyzingComplexity, stdin, setStd
               <div
                 key={i}
                 style={{
-                  color: block.type === 'stderr' ? '#ff5252' : block.type === 'info' ? theme.accent : theme.text,
-                  fontWeight: block.type === 'info' ? 'bold' : 'normal',
+                  color: block.type === 'stderr' ? '#ff5252' :
+                    block.type === 'warning' ? '#fbbf24' :
+                      block.type === 'success' ? '#4ade80' :
+                        block.type === 'info' ? theme.accent : theme.text,
+                  fontWeight: (block.type === 'info' || block.type === 'success') ? 'bold' : 'normal',
                   marginBottom: '4px'
                 }}
               >
