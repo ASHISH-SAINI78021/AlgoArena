@@ -6,12 +6,13 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 
 // 1. Get Auth URL
 exports.getAuthUrl = (req, res) => {
-  // Redirect to FRONTEND callback page
-  // In production, this should be the deployed frontend URL
+  // Use explicit redirect URI from env if provided (useful for production)
+  // Otherwise fall back to dynamic logic based on request origin
   const frontendUrl = req.headers.origin || 'http://localhost:5173';
-  const redirectUri = `${frontendUrl}/auth/github/callback`;
+  const redirectUri = process.env.GITHUB_REDIRECT_URI || `${frontendUrl}/auth/github/callback`;
+  
   const state = req.user.id; // Pass user ID in state
-  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=repo user&state=${state}`;
+  const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo user&state=${state}`;
   res.json({ url });
 };
 
