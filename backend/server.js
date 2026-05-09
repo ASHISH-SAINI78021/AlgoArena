@@ -24,7 +24,8 @@ const allowedOrigins = [
   'http://127.0.0.1:5174',
   'https://algo-arena-abq7.vercel.app',
   'https://algo-arena-88dw.vercel.app',
-  'https://ghost-codev5.netlify.app'
+  'https://ghost-codev5.netlify.app',
+  'https://ghost-code-six.vercel.app'
 ];
 
 app.use(cors({
