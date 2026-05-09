@@ -130,7 +130,7 @@ export default function Problems() {
                         }}
                     >
                         <option value="" style={{ background: theme.card || '#18181B', color: '#fff' }}>All Tags</option>
-                        {allTags.map(tag => (
+                        {Array.isArray(allTags) && allTags.map(tag => (
                             <option key={tag} value={tag} style={{ background: theme.card || '#18181B', color: '#fff' }}>
                                 {tag}
                             </option>
@@ -144,7 +144,7 @@ export default function Problems() {
                     <div style={{ textAlign: 'center', padding: '100px 20px', color: '#666', fontSize: '20px' }}>No problems match your criteria</div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                        {filteredProblems.map(p => (
+                        {Array.isArray(filteredProblems) && filteredProblems.map(p => (
                             <div
                                 key={p.slug}
                                 onClick={() => navigate(`/realtime-coding?problemSlug=${p.slug}`)}
