@@ -24,9 +24,41 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
   const yTextRef = useRef(null);
   const lastProblemIdRef = useRef(null);
   const currentProblemRef = useRef(null);
+  const modelsRef = useRef({});
+  const bindingsRef = useRef({});
+  const [fileTabs, setFileTabs] = useState(['main']);
+  const [activeTab, setActiveTab] = useState('main');
   const [language, setLanguage] = useState('cpp');
   const [stdinInput, setStdinInput] = useState(stdin || '');
   const [isExecuting, setIsExecuting] = useState(false);
+
+  const handleTabSwitch = (tabName) => {
+    setActiveTab(tabName);
+    if (editorInstance && modelsRef.current[tabName]) {
+      editorInstance.setModel(modelsRef.current[tabName]);
+      if (yDoc) {
+        const filesMap = yDoc.getMap('files');
+        yTextRef.current = tabName === 'main' ? yDoc.getText('monaco') : filesMap.get(tabName);
+      }
+    }
+  };
+
+  const handleAddTab = () => {
+    const fileName = prompt("Enter file name (e.g., Vehicle.java):");
+    if (fileName && fileName.trim()) {
+      const name = fileName.trim();
+      if (fileTabs.includes(name) || name === 'main') {
+        toast.error("File already exists!");
+        return;
+      }
+      if (yDoc) {
+        const filesMap = yDoc.getMap('files');
+        filesMap.set(name, new Y.Text());
+        // After syncTabs observes the change and sets up the model, switch to the new tab
+        setActiveTab(name);
+      }
+    }
+  };
 
   // Sync stdin when the prop changes (e.g. new duel problem loaded)
   useEffect(() => {
@@ -145,6 +177,16 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     }
   }, [language, editorInstance, monacoInstance]);
 
+  // Switch Monaco model whenever activeTab changes (handles both click and new-tab creation)
+  useEffect(() => {
+    if (!editorInstance || !yDoc || !modelsRef.current[activeTab]) return;
+    if (editorInstance.getModel() !== modelsRef.current[activeTab]) {
+      editorInstance.setModel(modelsRef.current[activeTab]);
+    }
+    const filesMap = yDoc.getMap('files');
+    yTextRef.current = activeTab === 'main' ? yDoc.getText('monaco') : filesMap.get(activeTab);
+  }, [activeTab, editorInstance, yDoc]);
+
   // Boilerplate Templates
   const templates = {
     javascript: `// GhostCode JavaScript Env\nfunction solution() {\n    console.log("Hello World");\n}\nsolution();`,
@@ -167,35 +209,78 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     }
   };
 
-  // ── Robust Auto-Save ──
+  // ── Robust Auto-Save (Debounced for Performance) ──
   useEffect(() => {
     if (!editorInstance) return;
+    let saveTimeout;
     const disposable = editorInstance.onDidChangeModelContent(() => {
-      const val = editorInstance.getValue();
-      const probId = currentProblemRef.current?._id || currentProblemRef.current?.title;
-      if (probId && roomId) {
-        localStorage.setItem(`duel_persist_code_${roomId}`, val);
-        localStorage.setItem(`duel_persist_prob_${roomId}`, String(probId));
-      }
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        const val = editorInstance.getValue();
+        const probId = currentProblemRef.current?._id || currentProblemRef.current?.title;
+        if (probId && roomId) {
+          localStorage.setItem(`duel_persist_code_${roomId}`, val);
+          localStorage.setItem(`duel_persist_prob_${roomId}`, String(probId));
+        }
+      }, 1000);
     });
-    return () => disposable.dispose();
+    return () => {
+      clearTimeout(saveTimeout);
+      disposable.dispose();
+    };
   }, [editorInstance, roomId]);
 
   useEffect(() => {
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
 
     const editor = editorInstance;
-    const type = yDoc.getText('monaco');
     const sharedData = yDoc.getMap('sharedData');
     const ghostMap = yDoc.getMap('ghostState');
+    const filesMap = yDoc.getMap('files');
     sharedDataRef.current = sharedData;
-    yTextRef.current = type;
 
-    const binding = new MonacoBinding(type, editor.getModel(), new Set([editor]), provider.awareness);
+    const setupTabModel = (tabName) => {
+      if (!modelsRef.current[tabName]) {
+        let model = (tabName === 'main' && Object.keys(modelsRef.current).length === 0)
+          ? (editor.getModel() || monacoInstance.editor.createModel('', language))
+          : monacoInstance.editor.createModel('', language);
+        modelsRef.current[tabName] = model;
+
+        const yText = tabName === 'main' ? yDoc.getText('monaco') : filesMap.get(tabName);
+        bindingsRef.current[tabName] = new MonacoBinding(yText, model, new Set([editor]), provider.awareness);
+      }
+    };
+
+    const syncTabs = () => {
+      const tabs = ['main', ...Array.from(filesMap.keys())];
+
+      setFileTabs(prevTabs => {
+        const isSame = prevTabs.length === tabs.length && prevTabs.every((val, i) => val === tabs[i]);
+        return isSame ? prevTabs : tabs;
+      });
+
+      tabs.forEach(setupTabModel);
+
+      setActiveTab(prevActive => {
+        const currentActive = prevActive || 'main';
+        if (modelsRef.current[currentActive]) {
+          const yText = currentActive === 'main' ? yDoc.getText('monaco') : filesMap.get(currentActive);
+          yTextRef.current = yText;
+          if (editor.getModel() !== modelsRef.current[currentActive]) {
+            editor.setModel(modelsRef.current[currentActive]);
+          }
+        }
+        return currentActive;
+      });
+    };
+
+    filesMap.observe(syncTabs);
+    syncTabs();
 
     // Check for cached code from unauthenticated session
     const cachedCode = sessionStorage.getItem(`guest_code_${roomId}`);
-    if (cachedCode && type.length === 0) {
+    const type = yTextRef.current;
+    if (type && cachedCode && type.length === 0) {
       type.insert(0, cachedCode);
       sessionStorage.removeItem(`guest_code_${roomId}`);
       toast.success("Restored your work! Click Save again to finish.", { icon: '💾' });
@@ -211,7 +296,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     // Track user count and names
     const updateUsers = () => {
       const states = provider.awareness.getStates();
-      setUserCount(states.size);
+      // Optimization: we don't blindly read and update on every move
 
       const activeUsers = [];
       let styleContent = '';
@@ -273,7 +358,15 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
          `;
       }
 
-      setUsers(activeUsers);
+      // PREVENT LAYOUT THRASHING AND REACT RE-RENDERS
+      // Only update React state if the active users actually changed (preventing re-renders on every cursor movement)
+      setUsers(prevUsers => {
+        if (JSON.stringify(prevUsers) !== JSON.stringify(activeUsers)) {
+          return activeUsers;
+        }
+        return prevUsers;
+      });
+      setUserCount(prevCount => prevCount !== states.size ? states.size : prevCount);
 
       let styleEl = document.getElementById('yjs-cursor-styles');
       if (!styleEl) {
@@ -281,23 +374,33 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
         styleEl.id = 'yjs-cursor-styles';
         document.head.appendChild(styleEl);
       }
-      styleEl.innerHTML = styleContent;
+
+      // Only rewrite CSS if it actually changed to stop massive repaints
+      if (styleEl.innerHTML !== styleContent) {
+        styleEl.innerHTML = styleContent;
+      }
     };
 
     provider.awareness.on('change', updateUsers);
     updateUsers();
 
-    // Track activity for AI Ghost
+    // Track activity for AI Ghost (Throttled for Performance)
+    let throttleTimeout = null;
     const handleLocalActivity = () => {
       const now = Date.now();
       lastActivityRef.current = now;
-      // Also update awareness so the leader knows someone is active
-      provider.awareness.setLocalStateField('lastActive', now);
-      console.log('👻 [Activity] User activity detected at', new Date(now).toLocaleTimeString());
+
+      if (!throttleTimeout) {
+        // Also update awareness so the leader knows someone is active
+        provider.awareness.setLocalStateField('lastActive', now);
+        throttleTimeout = setTimeout(() => {
+          throttleTimeout = null;
+        }, 2000); // 2-second throttle to prevent WebSocket flooding
+      }
     };
-    editor.onDidChangeModelContent(handleLocalActivity);
-    editor.onMouseDown(handleLocalActivity);
-    editor.onKeyDown(handleLocalActivity);
+    const contentDisposable = editor.onDidChangeModelContent(handleLocalActivity);
+    const mouseDisposable = editor.onMouseDown(handleLocalActivity);
+    const keyDisposable = editor.onKeyDown(handleLocalActivity);
     console.log('👻 [Activity] Activity tracking initialized for AI Ghost');
 
     // Initialize/Observe Shared Ghost Map
@@ -436,7 +539,11 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     window.addEventListener('insertAICode', handleInsertAICode);
 
     return () => {
-      binding.destroy();
+      Object.values(bindingsRef.current).forEach(b => b.destroy());
+      if (yDoc) {
+        const filesMap = yDoc.getMap('files');
+        filesMap.unobserve(syncTabs);
+      }
       provider.off('sync', handleSync);
       provider.awareness.off('change', updateUsers);
       sharedData.unobserve(syncLanguage);
@@ -445,6 +552,10 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
       const styleEl = document.getElementById('yjs-cursor-styles');
       if (styleEl) styleEl.innerHTML = '';
       window.removeEventListener('insertAICode', handleInsertAICode);
+
+      contentDisposable.dispose();
+      mouseDisposable.dispose();
+      keyDisposable.dispose();
     };
   }, [yDoc, provider, roomId, username, editorInstance, monacoInstance]);
 
@@ -738,13 +849,18 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     }
 
     const sourceCode = editorInstance.getValue();
+    const filesArray = fileTabs.map(tab => ({
+      name: tab,
+      code: modelsRef.current[tab] ? modelsRef.current[tab].getValue() : ''
+    }));
     try {
       const res = await axios.post('/code/save', {
         roomId,
         code: sourceCode,
         language,
         userId: user?.id,
-        fileName: newFileName.trim()
+        fileName: newFileName.trim(),
+        files: filesArray
       });
       setCurrentFileName(newFileName.trim());
       setIsSaveModalOpen(false);
@@ -785,11 +901,17 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
 
     const payloadStdin = (stdinInput && stdinInput.trim()) ? stdinInput : (testCaseInput !== null ? testCaseInput : stdin);
 
+    const filesArray = fileTabs.map(tab => ({
+      name: tab,
+      content: modelsRef.current[tab] ? modelsRef.current[tab].getValue() : ''
+    }));
+
     try {
       const response = await axios.post('/code/execute', {
         language: languageMap[language],
         source: sourceCode,
         stdin: payloadStdin,
+        files: filesArray,
         version: '*'
       });
 
@@ -1559,7 +1681,37 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           </div>
         );
       })()}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', background: '#0f172a', borderBottom: `1px solid ${theme.border}`, padding: '4px 8px 0 8px', gap: '4px', overflowX: 'auto' }}>
+          {fileTabs.map(tab => (
+            <div
+              key={tab}
+              onClick={() => handleTabSwitch(tab)}
+              style={{
+                padding: '6px 16px',
+                background: activeTab === tab ? '#1e293b' : 'transparent',
+                color: activeTab === tab ? '#fff' : '#94a3b8',
+                borderTopLeftRadius: '6px',
+                borderTopRightRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                border: activeTab === tab ? `1px solid ${theme.border}` : '1px solid transparent',
+                borderBottom: 'none',
+                userSelect: 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {tab}
+            </div>
+          ))}
+          <button
+            onClick={handleAddTab}
+            style={{ padding: '6px 12px', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px', lineHeight: '12px', display: 'flex', alignItems: 'center' }}
+            title="Add File"
+          >
+            +
+          </button>
+        </div>
         <Editor
           height="100%"
           theme={theme.monaco}

@@ -4,6 +4,7 @@ const CodeDataSchema = new mongoose.Schema({
     roomId: { type: String, required: true, unique: true },
     fileName: { type: String, unique: true, sparse: true },
     code: { type: String, default: "" },
+    files: [{ name: String, code: String }],
     language: { type: String, default: "javascript" },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     userEmail: { type: String }

@@ -1,17 +1,18 @@
 import './App.css'
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import Home from './pages/Home/Home';
-import CodingRealtime from './pages/CodingRealtime/CodingRealtime';
-import Login from './pages/Auth/Login';
-import Signup from './pages/Auth/Signup';
-import SavedCodes from './pages/SavedCodes/SavedCodes';
-import GithubCallback from './pages/Auth/GithubCallback';
-import DuelArena from './pages/DuelArena/DuelArena';
-import Problems from './pages/Problems/Problems';
 import { AuthProvider } from './context/AuthContext';
+
+const Home = lazy(() => import('./pages/Home/Home'));
+const CodingRealtime = lazy(() => import('./pages/CodingRealtime/CodingRealtime'));
+const Login = lazy(() => import('./pages/Auth/Login'));
+const Signup = lazy(() => import('./pages/Auth/Signup'));
+const SavedCodes = lazy(() => import('./pages/SavedCodes/SavedCodes'));
+const GithubCallback = lazy(() => import('./pages/Auth/GithubCallback'));
+const DuelArena = lazy(() => import('./pages/DuelArena/DuelArena'));
+const Problems = lazy(() => import('./pages/Problems/Problems'));
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import SplashCursor from './reactbits/SplashCursor';
 import Navbar from './components/Navbar/Navbar';
 
 /* Layout wrapper — adds navbar top-padding on all pages except Home */
@@ -32,34 +33,25 @@ function Layout({ children }) {
 function App() {
   return (
     <ThemeProvider>
-      <SplashCursor
-        COLOR="#8b5cf6"
-        SPLAT_RADIUS={0.25}
-        SPLAT_FORCE={4000}
-        DENSITY_DISSIPATION={3.5}
-        VELOCITY_DISSIPATION={2}
-        SIM_RESOLUTION={64}
-        DYE_RESOLUTION={256}
-        PRESSURE_ITERATIONS={10}
-        TRANSPARENT={true}
-      />
       <BrowserRouter>
         <AuthProvider>
           <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/problems" element={<Problems />} />
-              <Route path="/realtime-coding" element={<CodingRealtime />} />
-              <Route path="/saved-codes" element={
-                <ProtectedRoute>
-                  <SavedCodes />
-                </ProtectedRoute>
-              } />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/auth/github/callback" element={<GithubCallback />} />
-              <Route path="/duel" element={<DuelArena />} />
-            </Routes>
+            <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#8b5cf6' }}>Loading...</div>}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/problems" element={<Problems />} />
+                <Route path="/realtime-coding" element={<CodingRealtime />} />
+                <Route path="/saved-codes" element={
+                  <ProtectedRoute>
+                    <SavedCodes />
+                  </ProtectedRoute>
+                } />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/auth/github/callback" element={<GithubCallback />} />
+                <Route path="/duel" element={<DuelArena />} />
+              </Routes>
+            </Suspense>
           </Layout>
         </AuthProvider>
       </BrowserRouter>

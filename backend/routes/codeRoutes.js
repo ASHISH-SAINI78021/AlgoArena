@@ -31,15 +31,26 @@ const getWandboxCompiler = (lang) => {
 };
 
 router.post('/execute', async (req, res) => {
-    const { language, source, stdin } = req.body;
+    const { language, source, stdin, files } = req.body;
 
     try {
         const compiler = getWandboxCompiler(language || "");
-        const response = await axios.post(WANDBOX_API, {
+        
+        let payload = {
             compiler: compiler,
-            code: source,
             stdin: stdin || ""
-        });
+        };
+
+        if (files && files.length > 0) {
+            payload.code = files[0].content;
+            if (files.length > 1) {
+                payload.codes = files.slice(1).map(f => ({ file: f.name, content: f.content }));
+            }
+        } else {
+            payload.code = source;
+        }
+
+        const response = await axios.post(WANDBOX_API, payload);
 
         const data = response.data;
         
@@ -81,7 +92,7 @@ router.get('/user-codes', auth, async (req, res) => {
 });
 
 router.post('/save', async (req, res) => {
-    const { roomId, code, language, userId, fileName } = req.body;
+    const { roomId, code, language, userId, fileName, files } = req.body;
     try {
         // Check if fileName is already used by a DIFFERENT room
         if (fileName) {
@@ -94,6 +105,7 @@ router.post('/save', async (req, res) => {
         const updateData = { code, language };
         if (userId) updateData.userId = userId;
         if (fileName) updateData.fileName = fileName;
+        if (files) updateData.files = files;
 
         const savedData = await CodeData.findOneAndUpdate(
             { roomId },
@@ -109,7 +121,7 @@ router.post('/save', async (req, res) => {
 router.get('/:roomId', async (req, res) => {
     try {
         const data = await CodeData.findOne({ roomId: req.params.roomId });
-        res.json(data || { code: "", language: "javascript" });
+        res.json(data || { code: "", language: "javascript", files: [] });
     } catch (error) {
         res.status(500).json({ error: "Failed to fetch code" });
     }
