@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Sparkles, Github, Camera, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Github, Camera, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { MonacoBinding } from 'y-monaco';
@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 import ExportModal from './ExportModal';
 import { useSound } from '../../hooks/useSound';
 
-const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingComplexity, stdin, yDoc, provider, currentProblem, onRunComplete, disableAI }) => {
+const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingComplexity, stdin, yDoc, provider, currentProblem, onRunComplete, disableAI, isFullscreen, onFullscreenToggle }) => {
   const navigate = useNavigate();
   const { theme, themeName, setThemeName } = useTheme();
   const { playCompileSuccess, playCompileError, playGhostWhisper, playTestCorrect, playTestWrong, isSoundEnabled, toggleSound } = useSound();
@@ -432,12 +432,12 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
         const sharedLang = sharedData.get('language');
 
         // Only insert template/saved code if the document is totally empty (first setup in this Yjs session)
-        if (type.length === 0) {
+        if (type && type.length === 0) {
           try {
             const res = await axios.get(`/code/${roomId}`);
 
             // ⚠️ RACE GUARD: Re-check after await — another effect may have inserted content while we waited
-            if (type.length > 0) return;
+            if (type && type.length > 0) return;
 
             if (res.data && res.data.code && res.data.code.trim() !== '') {
               // Found saved code in DB!
@@ -481,7 +481,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           } catch (error) {
             console.error("Failed to fetch recovery code:", error);
             // ⚠️ RACE GUARD: bail if content appeared during the failed request too
-            if (type.length > 0) return;
+            if (type && type.length > 0) return;
             const currentLang = sharedLang || 'cpp';
             setLanguage(currentLang);
             const pendingProblem = currentProblemRef.current;
@@ -1112,7 +1112,13 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
   };
 
   return (
-    <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={isFullscreen ? {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      background: '#0f172a',
+    } : { height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{
         padding: '8px 12px',
         background: theme.sidebar,
@@ -1328,6 +1334,30 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
           <button onClick={runCode} disabled={isExecuting} style={{ background: '#22c55e', opacity: isExecuting ? 0.7 : 1, border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', fontWeight: '600', cursor: isExecuting ? 'not-allowed' : 'pointer', fontSize: '12px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
             {isExecuting && <div className="spinner" style={{ width: '10px', height: '10px', border: `2px solid #fff`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />}
             {isExecuting ? 'Running...' : 'Run'}
+          </button>
+
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={onFullscreenToggle}
+            title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen Editor'}
+            style={{
+              background: isFullscreen ? theme.primary : theme.card,
+              border: `1px solid ${isFullscreen ? theme.primary : theme.border}`,
+              color: '#fff',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              transition: 'all 0.2s',
+              boxShadow: isFullscreen ? `0 4px 14px ${theme.primary}55` : 'none',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            {isFullscreen ? 'Exit' : 'Full'}
           </button>
         </div>
       </div>

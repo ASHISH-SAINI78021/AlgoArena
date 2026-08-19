@@ -28,6 +28,10 @@ body {
   color: var(--theme-text);
 }
 
+body.editor-fullscreen nav {
+  display: none !important;
+}
+
 code,
 pre {
   font-family: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;

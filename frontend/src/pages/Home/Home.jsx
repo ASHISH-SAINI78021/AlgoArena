@@ -286,6 +286,13 @@ export default function Home() {
   const magBtn2 = useMagnetic();
   const magBtn3 = useMagnetic();
   const heroRef = useFadeUp(0);
+
+  // Generate a random room and auto-join (skip the lobby form)
+  const openArena = () => {
+    const roomId = Math.random().toString(36).substring(2, 9);
+    const username = user?.username || 'Guest' + Math.floor(Math.random() * 9000 + 1000);
+    navigate(`/realtime-coding?roomId=${roomId}&username=${encodeURIComponent(username)}`);
+  };
   const h1Ref = useFadeUp(100);
   const subRef = useFadeUp(250);
   const ctaRef = useFadeUp(400);
@@ -346,7 +353,7 @@ export default function Home() {
               <button className={styles.navBtn} onClick={() => navigate('/duel')} style={{ color: '#ef4444' }}>
                 <Swords size={14} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'text-bottom' }} /> Duel
               </button>
-              <button className={styles.navPrimary} onClick={() => navigate('/realtime-coding')}>
+              <button className={styles.navPrimary} onClick={openArena}>
                 Open Arena <ArrowRight size={14} />
               </button>
             </>
@@ -356,7 +363,7 @@ export default function Home() {
               <button className={styles.navBtn} onClick={() => navigate('/duel')} style={{ color: '#ef4444' }}>
                 <Swords size={14} style={{ marginRight: '4px', display: 'inline-block', verticalAlign: 'text-bottom' }} /> Duel
               </button>
-              <button className={styles.navPrimary} onClick={() => navigate('/realtime-coding')}>
+              <button className={styles.navPrimary} onClick={openArena}>
                 Open Arena <ArrowRight size={14} />
               </button>
             </>
@@ -386,7 +393,7 @@ export default function Home() {
           <button
             ref={magBtn1}
             className={styles.primaryBtn}
-            onClick={() => navigate('/realtime-coding')}
+            onClick={openArena}
           >
             <Play size={16} />
             Enter the Arena
@@ -465,7 +472,7 @@ export default function Home() {
             <div className={styles.ctaBtns}>
               <button
                 className={styles.primaryBtn}
-                onClick={() => navigate('/realtime-coding')}
+                onClick={openArena}
               >
                 {user ? 'Keep Practicing' : 'Get Started Free'}
                 <ChevronRight size={16} />

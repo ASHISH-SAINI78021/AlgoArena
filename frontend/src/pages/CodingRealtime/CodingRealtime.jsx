@@ -111,6 +111,26 @@ const CodingRealtime = () => {
   // Chat state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+
+  // Exit fullscreen on Escape key
+  useEffect(() => {
+    if (isEditorFullscreen) {
+      document.body.classList.add('editor-fullscreen');
+    } else {
+      document.body.classList.remove('editor-fullscreen');
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isEditorFullscreen) setIsEditorFullscreen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.classList.remove('editor-fullscreen');
+    };
+  }, [isEditorFullscreen]);
+
   // Yjs state
   const [yDoc, setYDoc] = useState(null);
   const [provider, setProvider] = useState(null);
@@ -346,7 +366,15 @@ const CodingRealtime = () => {
         </div>
 
         {/* Column 2: Editor Section */}
-        <div className={styles.pane} style={{
+        <div className={styles.pane} style={isEditorFullscreen ? {
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: '#0f172a',
+          backdropFilter: 'none',
+          display: 'flex',
+          flexDirection: 'column'
+        } : {
           flex: 2,
           borderRight: `1px solid rgba(255,255,255,0.06)`,
           minWidth: '400px',
@@ -392,6 +420,8 @@ const CodingRealtime = () => {
             yDoc={yDoc}
             provider={provider}
             currentProblem={selectedProblem}
+            isFullscreen={isEditorFullscreen}
+            onFullscreenToggle={() => setIsEditorFullscreen(prev => !prev)}
           />
         </div>
 

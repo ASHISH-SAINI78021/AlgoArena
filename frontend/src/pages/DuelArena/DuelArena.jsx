@@ -82,6 +82,25 @@ export default function DuelArena() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
+    const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+
+    useEffect(() => {
+        if (isEditorFullscreen) {
+            document.body.classList.add('editor-fullscreen');
+        } else {
+            document.body.classList.remove('editor-fullscreen');
+        }
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isEditorFullscreen) setIsEditorFullscreen(false);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            document.body.classList.remove('editor-fullscreen');
+        };
+    }, [isEditorFullscreen]);
+
     const socketRef = useRef(null);
     const timerRef = useRef(null);
 
@@ -587,7 +606,12 @@ export default function DuelArena() {
                 </div>
 
                 {/* Editor Panel */}
-                <div className={styles.editorPanel}>
+                <div className={styles.editorPanel} style={isEditorFullscreen ? {
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 9999,
+                    background: '#0f172a'
+                } : undefined}>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         {editorReady && (
                             <CodeEditor
@@ -600,6 +624,8 @@ export default function DuelArena() {
                                 currentProblem={problem}
                                 onRunComplete={handleRunComplete}
                                 disableAI={true}
+                                isFullscreen={isEditorFullscreen}
+                                onFullscreenToggle={() => setIsEditorFullscreen(prev => !prev)}
                             />
                         )}
                     </div>
