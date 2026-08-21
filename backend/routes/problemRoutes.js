@@ -1,6 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const Problem = require('../models/Problem');
+const auth = require('../middleware/auth');
+
+// Create a new problem (Admin only)
+router.post('/', auth, async (req, res) => {
+    try {
+        if (req.user.email !== 'frii78021@gmail.com') {
+            return res.status(403).json({ error: "Access denied. Admins only." });
+        }
+        
+        const problem = new Problem(req.body);
+        await problem.save();
+        res.status(201).json(problem);
+    } catch (error) {
+        res.status(400).json({ error: "Failed to create problem", details: error.message });
+    }
+});
 
 // Get all unique tags
 router.get('/tags/all', async (req, res) => {

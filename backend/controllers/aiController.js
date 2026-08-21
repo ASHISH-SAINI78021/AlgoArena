@@ -11,6 +11,8 @@ const isValidCodingPrompt = (prompt) => {
     'bug', 'fix', 'debug', 'error', 'implement', 'create', 'write',
     'sort', 'search', 'optimize', 'refactor', 'test', 'validate',
     'explain', 'review', 'mistake', 'wrong', 'problem', 'issue', 'help',
+    'data', 'structure', 'complexity', 'time', 'space', 'performance',
+    'tree', 'graph', 'hash', 'why', 'what', 'complexity', 'o(n)',
     // Languages
     'js', 'javascript', 'python', 'java', 'cpp', 'c++', 'html', 'css', 'react', 'node',
     // Logic/Math

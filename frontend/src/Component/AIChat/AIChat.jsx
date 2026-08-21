@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../axios/axiosInstance';
-import { Sparkles, Send, Bot, User, Lightbulb, Trash2 } from 'lucide-react';
+import { Sparkles, Send, Bot, User, Lightbulb, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const AIChat = ({ currentProblem, currentCode, language, onInsertCode }) => {
+const AIChat = ({ currentProblem, currentCode, language, onInsertCode, isFullscreen, onFullscreenToggle }) => {
     const { theme } = useTheme();
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -68,9 +68,16 @@ const AIChat = ({ currentProblem, currentCode, language, onInsertCode }) => {
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', color: theme.text }}>
                     <Sparkles size={18} color="#8b5cf6" /> AI Mentor
                 </h3>
-                <button onClick={clearChat} style={{ background: 'transparent', border: 'none', color: theme.subtext, cursor: 'pointer' }}>
-                    <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {onFullscreenToggle && (
+                        <button onClick={onFullscreenToggle} style={{ background: 'transparent', border: 'none', color: theme.subtext, cursor: 'pointer', display: 'flex' }}>
+                            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                        </button>
+                    )}
+                    <button onClick={clearChat} style={{ background: 'transparent', border: 'none', color: theme.subtext, cursor: 'pointer', display: 'flex' }}>
+                        <Trash2 size={16} />
+                    </button>
+                </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px' }}>

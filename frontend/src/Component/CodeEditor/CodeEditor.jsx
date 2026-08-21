@@ -217,6 +217,13 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
         const val = editorInstance.getValue();
+        if (val.trim() === '') return; // Don't persist empty editor
+        // Always save to localStorage using roomId (covers both duel and general rooms)
+        if (roomId) {
+          localStorage.setItem(`editor_code_${roomId}`, val);
+          localStorage.setItem(`editor_lang_${roomId}`, language);
+        }
+        // Also save duel-mode keys for problem-specific recovery
         const probId = currentProblemRef.current?._id || currentProblemRef.current?.title;
         if (probId && roomId) {
           localStorage.setItem(`duel_persist_code_${roomId}`, val);
@@ -228,7 +235,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
       clearTimeout(saveTimeout);
       disposable.dispose();
     };
-  }, [editorInstance, roomId]);
+  }, [editorInstance, roomId, language]);
 
   useEffect(() => {
     if (!editorInstance || !monacoInstance || !yDoc || !provider) return;
@@ -447,13 +454,28 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
               sharedData.set('language', savedLang);
               if (res.data.fileName) setCurrentFileName(res.data.fileName);
             } else {
-              // No saved code from DB — prioritize Local Storage first, then boilerplate
+              // No saved code from DB — priority chain:
+              // 1. localStorage general backup  2. duel problem backup  3. boilerplate
               const currentLang = sharedLang || 'cpp';
               setLanguage(currentLang);
               const pendingProblem = currentProblemRef.current;
 
               let insertedBackup = false;
-              if (pendingProblem) {
+
+              // Priority 1: General room localStorage backup (covers any plain refresh)
+              const generalBackup = localStorage.getItem(`editor_code_${roomId}`);
+              const generalLang = localStorage.getItem(`editor_lang_${roomId}`);
+              if (generalBackup && generalBackup.trim() !== '') {
+                type.insert(0, generalBackup);
+                if (generalLang) {
+                  setLanguage(generalLang);
+                  sharedData.set('language', generalLang);
+                }
+                insertedBackup = true;
+              }
+
+              // Priority 2: Duel-problem-specific backup
+              if (!insertedBackup && pendingProblem) {
                 const probId = pendingProblem._id || pendingProblem.title;
                 const localBackupCode = localStorage.getItem(`duel_persist_code_${roomId}`);
                 const localBackupProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
@@ -463,6 +485,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
                 }
               }
 
+              // Priority 3: boilerplate
               if (!insertedBackup) {
                 if (pendingProblem) {
                   const boilerplate = pendingProblem.boilerplates?.['cpp'] || pendingProblem.boilerplates?.[currentLang] || templates['cpp'] || templates[currentLang];
@@ -476,7 +499,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
                 lastProblemIdRef.current = pendingProblem._id || pendingProblem.title;
                 if (pendingProblem.title) setCurrentFileName(pendingProblem.title);
               }
-              sharedData.set('language', currentLang);
+              if (!insertedBackup) sharedData.set('language', currentLang);
             }
           } catch (error) {
             console.error("Failed to fetch recovery code:", error);
@@ -730,7 +753,7 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     currentProblemRef.current = currentProblem;
   }, [currentProblem]);
 
-  // Handle Problem Change: Always insert boilerplate immediately (deduplicated by ID)
+  // Handle Problem Change: Insert boilerplate ONLY when the problem truly changed
   useEffect(() => {
     if (!currentProblem) return;
 
@@ -741,40 +764,57 @@ const CodeEditor = ({ roomId, username, setOutput, setIsRunning, setIsAnalyzingC
     if (!editorInstance) return;
 
     const problemId = currentProblem._id || currentProblem.title;
+
+    // Already stamped this problem — nothing to do
     if (problemId && problemId === lastProblemIdRef.current) return;
 
-    // ── RECOVERY LOGIC (Priority 1: Local Backup) ──
-    const savedCode = localStorage.getItem(`duel_persist_code_${roomId}`);
-    const savedProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
     const isYjsEmpty = yTextRef.current ? yTextRef.current.length === 0 : false;
+
+    // ── KEY FIX: On refresh, Yjs reconnects with existing content (isYjsEmpty = false).
+    // If the editor already has code, just stamp the problemId and do NOT overwrite.
+    // Without this guard, the effect was always inserting boilerplate on refresh because
+    // lastProblemIdRef is null after mount.
+    if (!isYjsEmpty && lastProblemIdRef.current === null) {
+      // Reconnected to a live Yjs session — preserve existing editor content
+      lastProblemIdRef.current = problemId;
+      if (currentProblem.title) setCurrentFileName(currentProblem.title);
+      return;
+    }
+
+    // ── RECOVERY LOGIC (Priority 1: Local Backup) ──
+    const savedCode = localStorage.getItem(`editor_code_${roomId}`);
+    const savedLang = localStorage.getItem(`editor_lang_${roomId}`);
+    const duelCode = localStorage.getItem(`duel_persist_code_${roomId}`);
+    const duelProbId = localStorage.getItem(`duel_persist_prob_${roomId}`);
 
     let textToInsert = '';
 
-    if (savedCode && savedProbId === String(problemId)) {
-      // If we don't have yDoc OR if yDoc is COMPLETELY empty, it means we are safe to overwrite
-      if (!yDoc || isYjsEmpty) {
-        textToInsert = savedCode;
-      }
+    // Check general backup first
+    if (savedCode && savedCode.trim() !== '' && isYjsEmpty) {
+      textToInsert = savedCode;
+    }
+    // Then duel-specific backup
+    if (!textToInsert && duelCode && duelProbId === String(problemId) && isYjsEmpty) {
+      textToInsert = duelCode;
     }
 
-    // ── BOILERPLATE LOGIC (Priority 2) ──
+    // ── BOILERPLATE LOGIC (Priority 2: fallback when truly a new/empty room) ──
     if (!textToInsert) {
       textToInsert = currentProblem.boilerplates?.['cpp'] || currentProblem.boilerplates?.[language] || templates['cpp'] || templates[language];
     }
 
     const model = editorInstance.getModel();
     if (model) {
-      // Execute edit cleanly so Monaco notifies Yjs without causing cursor jump bugs
       editorInstance.executeEdits('problem-change', [{
         range: model.getFullModelRange(),
         text: textToInsert
       }]);
     }
 
-    // Only mark as done AFTER successful replacement
+    // Stamp after successful replacement
     lastProblemIdRef.current = problemId;
     if (currentProblem.title) setCurrentFileName(currentProblem.title);
-  }, [currentProblem, editorInstance, yDoc, language]); // Added language to sync
+  }, [currentProblem, editorInstance, yDoc, language]);
 
   const handleResetBoilerplate = () => {
     if (editorInstance) {

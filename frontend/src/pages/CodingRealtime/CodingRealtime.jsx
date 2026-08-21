@@ -112,24 +112,30 @@ const CodingRealtime = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+  const [isOutputFullscreen, setIsOutputFullscreen] = useState(false);
+  const [isAIFullscreen, setIsAIFullscreen] = useState(false);
 
   // Exit fullscreen on Escape key
   useEffect(() => {
-    if (isEditorFullscreen) {
+    if (isEditorFullscreen || isOutputFullscreen || isAIFullscreen) {
       document.body.classList.add('editor-fullscreen');
     } else {
       document.body.classList.remove('editor-fullscreen');
     }
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isEditorFullscreen) setIsEditorFullscreen(false);
+      if (e.key === 'Escape') {
+        setIsEditorFullscreen(false);
+        setIsOutputFullscreen(false);
+        setIsAIFullscreen(false);
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.classList.remove('editor-fullscreen');
     };
-  }, [isEditorFullscreen]);
+  }, [isEditorFullscreen, isOutputFullscreen, isAIFullscreen]);
 
   // Yjs state
   const [yDoc, setYDoc] = useState(null);
@@ -427,14 +433,28 @@ const CodingRealtime = () => {
 
         {/* Column 3: Output & AI Sidebar Area */}
         <div className={styles.pane} style={{ flex: 1.1, minWidth: '350px', display: 'flex', flexDirection: 'column', borderRight: 'none' }}>
-          <div style={{ height: '40%', borderBottom: `1px solid rgba(255,255,255,0.06)`, overflow: 'hidden' }}>
-            <OutputConsole output={output} isRunning={isRunning} isAnalyzingComplexity={isAnalyzingComplexity} stdin={stdin} setStdin={setStdin} />
+          <div style={isOutputFullscreen ? {
+            position: 'fixed', inset: 0, zIndex: 9999, background: '#0f172a', display: 'flex', flexDirection: 'column'
+          } : { height: '40%', borderBottom: `1px solid rgba(255,255,255,0.06)`, overflow: 'hidden' }}>
+            <OutputConsole
+              output={output}
+              isRunning={isRunning}
+              isAnalyzingComplexity={isAnalyzingComplexity}
+              stdin={stdin}
+              setStdin={setStdin}
+              isFullscreen={isOutputFullscreen}
+              onFullscreenToggle={() => setIsOutputFullscreen(prev => !prev)}
+            />
           </div>
-          <div style={{ height: '60%', overflow: 'hidden' }}>
+          <div style={isAIFullscreen ? {
+            position: 'fixed', inset: 0, zIndex: 9999, background: '#0f172a', display: 'flex', flexDirection: 'column'
+          } : { height: '60%', overflow: 'hidden' }}>
             <AIChat
               currentProblem={selectedProblem}
               currentCode={yDoc?.getText('monaco').toString() || ''}
               language={selectedProblem?.language || 'javascript'}
+              isFullscreen={isAIFullscreen}
+              onFullscreenToggle={() => setIsAIFullscreen(prev => !prev)}
               onInsertCode={(fullResponse) => {
                 const codeBlockRegex = /```(?:[a-zA-Z0-9]+)?\n([\s\S]*?)```/g;
                 let match;

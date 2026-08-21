@@ -11,6 +11,7 @@ const SavedCodes = lazy(() => import('./pages/SavedCodes/SavedCodes'));
 const GithubCallback = lazy(() => import('./pages/Auth/GithubCallback'));
 const DuelArena = lazy(() => import('./pages/DuelArena/DuelArena'));
 const Problems = lazy(() => import('./pages/Problems/Problems'));
+const CreateProblem = lazy(() => import('./pages/Admin/CreateProblem'));
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar/Navbar';
@@ -50,6 +51,11 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/auth/github/callback" element={<GithubCallback />} />
                 <Route path="/duel" element={<DuelArena />} />
+                <Route path="/admin/create-problem" element={
+                  <ProtectedRoute>
+                    <CreateProblem />
+                  </ProtectedRoute>
+                } />
               </Routes>
             </Suspense>
           </Layout>

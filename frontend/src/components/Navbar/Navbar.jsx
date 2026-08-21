@@ -74,6 +74,11 @@ export default function Navbar() {
                         <button className={styles.pill} onClick={() => navigate('/problems')}>
                             <Book size={14} /> Problems
                         </button>
+                        {user?.email === 'frii78021@gmail.com' && (
+                            <button className={styles.pill} onClick={() => navigate('/admin/create-problem')} style={{ background: '#10b981', color: 'white' }}>
+                                + Add Problem
+                            </button>
+                        )}
                         <button className={styles.pill} onClick={() => navigate('/realtime-coding')}>
                             Open Arena <ArrowRight size={12} />
                         </button>

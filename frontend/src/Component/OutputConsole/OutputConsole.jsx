@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
-const OutputConsole = ({ output, isRunning, isAnalyzingComplexity, stdin, setStdin }) => {
+const OutputConsole = ({ output, isRunning, isAnalyzingComplexity, stdin, setStdin, isFullscreen, onFullscreenToggle }) => {
   const { theme } = useTheme();
 
   return (
@@ -22,9 +23,17 @@ const OutputConsole = ({ output, isRunning, isAnalyzingComplexity, stdin, setStd
         letterSpacing: '0.05em',
         color: theme.subtext,
         background: theme.card,
-        backdropFilter: `blur(${theme.blur})`
+        backdropFilter: `blur(${theme.blur})`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
-        Console
+        <span>Console</span>
+        {onFullscreenToggle && (
+          <button onClick={onFullscreenToggle} style={{ background: 'transparent', border: 'none', color: theme.subtext, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        )}
       </div>
       <div style={{
         padding: '16px',
